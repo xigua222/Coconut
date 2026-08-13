@@ -12,7 +12,8 @@
     "noEmit": true,
     "strict": true,
     "noFallthroughCasesInSwitch": true,
+    "jsx": "react-jsx",
     "types": ["vite/client"]
   },
-  "include": ["src/**/*.ts", "src/**/*.svelte", "src/**/*.d.ts"]
+  "include": ["src/**/*.ts", "src/**/*.tsx", "src/**/*.d.ts"]
 }

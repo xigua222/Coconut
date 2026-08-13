@@ -2,8 +2,8 @@
  * IPC 层:所有 Rust → 前端事件的监听注册与类型定义。
  */
 import { listen } from "@tauri-apps/api/event";
-import { tabStore } from "../lib/tabs/tabStore.svelte";
-import { settingsStore } from "../lib/settings/settingsStore.svelte";
+import { tabStore } from "../lib/tabs/tabStore";
+import { settingsStore } from "../lib/settings/settingsStore";
 import { openInVscode, showInFolder } from "./commands";
 import { exportCurrentHtml, exportCurrentPdf } from "../lib/files/export";
 

@@ -1,7 +1,8 @@
 import "./app.css";
-import { mount } from "svelte";
-import App from "./App.svelte";
-import { settingsStore } from "./lib/settings/settingsStore.svelte";
+import "./components.css";
+import { createRoot } from "react-dom/client";
+import { App } from "./App";
+import { settingsStore } from "./lib/settings/settingsStore";
 import { registerAll } from "./ipc/events";
 import { frontendReady } from "./ipc/commands";
 
@@ -23,7 +24,7 @@ async function bootstrap() {
   // 关键:必须先等 listen 的 IPC 注册完成,再发 frontend_ready,
   // 否则 Rust 端 emit 的 open-file 可能先于监听器到达而丢失
   await registerAll();
-  mount(App, { target: document.getElementById("app")! });
+  createRoot(document.getElementById("app")!).render(<App />);
   try {
     await frontendReady();
   } catch (e) {

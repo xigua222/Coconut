@@ -1,4 +1,4 @@
-import type { DocumentSession } from "../files/document.svelte";
+import type { DocumentSession } from "../files/document";
 
 export interface Tab {
   id: string;

@@ -1,7 +1,7 @@
 /**
  * 导出流程:HTML 存盘 / PDF(隐藏 WebView 原生打印对话框)。
  */
-import type { DocumentSession } from "./document.svelte";
+import type { DocumentSession } from "./document";
 import { exportHtml } from "../../ipc/commands";
 import { pickSavePath } from "../../ipc/dialogs";
 

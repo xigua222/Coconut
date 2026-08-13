@@ -4,34 +4,36 @@ import { pickSavePath } from "../../ipc/dialogs";
 import { sameAfterNormalize } from "../editor/roundtrip";
 import { watchFile } from "./watcher";
 import { push as pushRecent } from "./recent";
-import { markDone, markWriting } from "./agentActivity.svelte";
-import { settingsStore } from "../settings/settingsStore.svelte";
+import { markDone, markWriting } from "./agentActivity";
+import { settingsStore } from "../settings/settingsStore";
 import { basename } from "../utils/platform";
 import { debounce } from "../utils/debounce";
+import { ReactiveStore } from "../react/reactive";
 
 /**
  * 单个打开文档的生命周期模型。
  * 状态:path(null=未命名)、md、savedMtime、dirty、encoding、lossless。
  * 原则:没有用户输入事件,绝不写盘。
+ * React 版:extends ReactiveStore,每次字段变更后 notify()。
  */
-export class DocumentSession {
-  path: string | null = $state(null);
-  title = $state("未命名");
+export class DocumentSession extends ReactiveStore {
+  path: string | null = null;
+  title = "未命名";
   /** 最新内容(编辑器防抖后回写,供大纲/状态栏派生) */
-  md = $state("");
+  md = "";
   /** 编辑模式:wysiwyg=所见即所得(Crepe);source=源码(textarea) */
-  mode = $state<"wysiwyg" | "source">("wysiwyg");
+  mode: "wysiwyg" | "source" = "wysiwyg";
   /** 源码模式下 textarea 的当前值 */
-  sourceText = $state("");
+  sourceText = "";
   /** 磁盘编码;非 UTF-8 时保存将转为 UTF-8 */
-  encoding = $state("UTF-8");
-  dirty = $state(false);
-  saving = $state(false);
+  encoding = "UTF-8";
+  dirty = false;
+  saving = false;
   /** 文件被外部修改且本会话有未保存修改 */
-  conflict = $state(false);
+  conflict = false;
   /** roundtrip 无损性:false 时提示"保存后格式会被重排" */
-  lossless = $state(true);
-  error = $state<string | null>(null);
+  lossless = true;
+  error: string | null = null;
 
   #savedMtime: number | null = null;
   #editor: EditorHandle | null = null;
@@ -80,6 +82,7 @@ export class DocumentSession {
     const md = this.#editor?.getMarkdown();
     if (md == null) return;
     this.lossless = sameAfterNormalize(md, this.md);
+    this.notify();
   }
 
   /**
@@ -88,6 +91,7 @@ export class DocumentSession {
    */
   setLosslessFromSerialized(serialized: string): void {
     this.lossless = sameAfterNormalize(serialized, this.md);
+    this.notify();
   }
 
   get editor(): EditorHandle | null {
@@ -113,6 +117,7 @@ export class DocumentSession {
     } else {
       this.mode = "wysiwyg";
     }
+    this.notify();
   }
 
   /** 源码模式输入(EditorPane textarea) */
@@ -125,6 +130,7 @@ export class DocumentSession {
   /** 任意 markdown 变化(防抖后调用),刷新派生状态 */
   onContent(md: string): void {
     this.md = md;
+    this.notify();
   }
 
   /** 真实输入事件 → 脏标记 + 调度自动保存 */
@@ -132,6 +138,7 @@ export class DocumentSession {
     if (!this.#userInputEnabled) return;
     this.dirty = true;
     if (settingsStore.settings.autoSave) this.#autosave();
+    this.notify();
   }
 
   // ---------- 保存 ----------
@@ -175,6 +182,7 @@ export class DocumentSession {
       this.error = null;
     } finally {
       this.#watchPaused = false;
+      this.notify();
     }
   }
 
@@ -223,6 +231,7 @@ export class DocumentSession {
     } finally {
       this.saving = false;
       this.#watchPaused = false;
+      this.notify();
     }
   }
 
@@ -237,6 +246,7 @@ export class DocumentSession {
     this.title = basename(this.path);
     // 无损性判定需要编辑器在场(序列化口径与写盘一致),
     // 由 EditorPane 挂载后 / #onExternalChange 重载后调用 reevalLossless
+    this.notify();
   }
 
   #startWatch(): void {
@@ -262,10 +272,12 @@ export class DocumentSession {
         else this.#editor?.setMarkdown(res.content);
         this.reevalLossless();
         markDone();
+        this.notify();
       } else {
         // 有未保存修改 → 冲突横幅,让用户二选一
         this.conflict = true;
         markDone();
+        this.notify();
       }
     } catch {
       // 文件被删除等极端情况,忽略

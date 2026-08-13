@@ -1,28 +1,29 @@
 import type { ConfirmChoice, Tab } from "./types";
-import { DocumentSession } from "../files/document.svelte";
+import { DocumentSession } from "../files/document";
 import { push as pushRecent } from "../files/recent";
 import { pickFiles } from "../../ipc/dialogs";
 import { uid } from "../utils/platform";
+import { ReactiveStore } from "../react/reactive";
 
 /**
- * 全应用唯一可变状态中心(Svelte 5 runes)。
+ * 全应用唯一可变状态中心(React 版:ReactiveStore)。
  * 窗口关闭拦截也在此:存在 dirty tab 时 preventDefault 并逐个走确认流程。
  */
-class TabStore {
-  tabs: Tab[] = $state([]);
-  activeId: string | null = $state(null);
+class TabStore extends ReactiveStore {
+  tabs: Tab[] = [];
+  activeId: string | null = null;
   /** 待确认关闭的会话(有未保存修改),由 ConfirmModal 消费 */
-  pendingClose: DocumentSession | null = $state(null);
+  pendingClose: DocumentSession | null = null;
   /** 设置抽屉可见(原生菜单"设置…"触发) */
-  settingsOpen = $state(false);
+  settingsOpen = false;
   /** 搜索浮层(⌘K) */
-  searchOpen = $state(false);
+  searchOpen = false;
   /** 侧栏展开 */
-  sidebarVisible = $state(true);
+  sidebarVisible = true;
   /** 阅读进度 0-1(顶栏进度条) */
-  progress = $state(0);
+  progress = 0;
   /** 当前活动大纲标题索引(TOC 游标) */
-  activeToc = $state(-1);
+  activeToc = -1;
 
   #confirmResolve: ((c: ConfirmChoice) => void) | null = null;
 
@@ -58,10 +59,14 @@ class TabStore {
     const tab: Tab = { id: uid(), session };
     this.tabs.push(tab);
     this.activeId = tab.id;
+    this.notify();
   }
 
   activate(id: string): void {
-    if (this.tabs.some((t) => t.id === id)) this.activeId = id;
+    if (this.tabs.some((t) => t.id === id)) {
+      this.activeId = id;
+      this.notify();
+    }
   }
 
   /** 拖拽排序 */
@@ -69,6 +74,7 @@ class TabStore {
     if (from === to || from < 0 || to < 0 || from >= this.tabs.length || to >= this.tabs.length) return;
     const [tab] = this.tabs.splice(from, 1);
     this.tabs.splice(to, 0, tab);
+    this.notify();
   }
 
   // ---------- 关闭(含未保存确认) ----------
@@ -95,6 +101,7 @@ class TabStore {
     if (this.activeId === id) {
       this.activeId = this.tabs[idx]?.id ?? this.tabs[idx - 1]?.id ?? null;
     }
+    this.notify();
   }
 
   // ---------- 保存 ----------
@@ -139,6 +146,7 @@ class TabStore {
 
   #confirm(session: DocumentSession): Promise<ConfirmChoice> {
     this.pendingClose = session;
+    this.notify();
     return new Promise((resolve) => {
       this.#confirmResolve = resolve;
     });
@@ -148,6 +156,7 @@ class TabStore {
     this.pendingClose = null;
     this.#confirmResolve?.(choice);
     this.#confirmResolve = null;
+    this.notify();
   }
 }
 

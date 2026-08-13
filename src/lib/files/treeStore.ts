@@ -5,25 +5,28 @@
  * 根目录持久化在 settings.folderRoot;树数据(扁平 + depth)来自
  * Rust scan_directory 命令;watch 用 fs 插件(需 capabilities scope)。
  */
-import { settingsStore } from "../settings/settingsStore.svelte";
+import { settingsStore } from "../settings/settingsStore";
 import { scanDirectory, type DirEntry } from "../../ipc/commands";
 import { pickFolder } from "../../ipc/dialogs";
 import { watch } from "@tauri-apps/plugin-fs";
-import { tabStore } from "../tabs/tabStore.svelte";
+import { tabStore } from "../tabs/tabStore";
 import { debounce } from "../utils/debounce";
-import { markDone, markWriting } from "./agentActivity.svelte";
+import { markDone, markWriting } from "./agentActivity";
+import { ReactiveStore } from "../react/reactive";
 
-class TreeStore {
+class TreeStore extends ReactiveStore {
   /** 当前根目录(派生自设置) */
-  root = $derived(settingsStore.settings.folderRoot);
-  entries = $state<DirEntry[]>([]);
+  get root(): string | null {
+    return settingsStore.settings.folderRoot;
+  }
+  entries: DirEntry[] = [];
   /** 展开的目录路径集合 */
-  expanded = $state<Set<string>>(new Set());
-  loading = $state(false);
-  error = $state<string | null>(null);
+  expanded = new Set<string>();
+  loading = false;
+  error: string | null = null;
 
   /** 可见条目:根目录 + 展开目录下的后代 */
-  visible = $derived.by(() => {
+  get visible(): DirEntry[] {
     const root = this.root;
     if (!root) return [];
     const out: DirEntry[] = [];
@@ -31,7 +34,7 @@ class TreeStore {
       if (e.depth === 0 || this.isAncestorVisible(e)) out.push(e);
     }
     return out;
-  });
+  }
 
   #stopWatch: (() => void) | null = null;
   /** 重扫描防抖(watch 事件可能密集);扫描完成即指示器 done */
@@ -75,6 +78,7 @@ class TreeStore {
     if (!picked) return;
     settingsStore.update("folderRoot", picked);
     this.expanded = new Set();
+    this.notify();
     await this.refresh();
   }
 
@@ -84,6 +88,7 @@ class TreeStore {
     if (next.has(path)) next.delete(path);
     else next.add(path);
     this.expanded = next;
+    this.notify();
   }
 
   /** 打开文件:复用统一打开通道(tab 复用/最近文件) */
@@ -102,6 +107,7 @@ class TreeStore {
     if (!root) return;
     this.loading = true;
     this.error = null;
+    this.notify();
     try {
       const entries = await scanDirectory(root);
       // 保留仍在展开集中的目录(文件可能被删)
@@ -112,6 +118,7 @@ class TreeStore {
       this.error = e instanceof Error ? e.message : String(e);
     } finally {
       this.loading = false;
+      this.notify();
     }
   }
 

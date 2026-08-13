@@ -6,13 +6,13 @@
  *   create 前注入,避免动态 use 重建编辑器);
  * - 匹配结果存在 plugin state(dispatch 带 meta),不落文档 → 不触发
  *   markdownUpdated、不置脏;
- * - UI 状态(findUI)是模块级 $state,FindBar 只读它,输入由控制器驱动。
+ * - UI 状态(findUI)是模块级 store,FindBar 只读它,输入由控制器驱动。
  */
 import { $prose } from "@milkdown/kit/utils";
 import { Plugin, PluginKey } from "@milkdown/kit/prose/state";
 import { Decoration, DecorationSet, type EditorView } from "@milkdown/kit/prose/view";
 import type { EditorState } from "@milkdown/kit/prose/state";
-import { findUI } from "./findUI.svelte";
+import { findUI } from "./findUI";
 
 interface FindState {
   query: string;
@@ -58,8 +58,7 @@ export function createFindFeature(): { plugin: ReturnType<typeof $prose>; contro
     const prev = (key.getState(view.state) as FindState) ?? { query: "", matches: [], current: 0 };
     const next = { ...prev, ...partial };
     view.dispatch(view.state.tr.setMeta(key, next));
-    findUI.count = next.matches.length;
-    findUI.current = next.matches.length ? next.current : 0;
+    findUI.set({ count: next.matches.length, current: next.matches.length ? next.current : 0 });
   }
 
   function scrollToCurrent(state: FindState): void {
@@ -111,18 +110,18 @@ export function createFindFeature(): { plugin: ReturnType<typeof $prose>; contro
 
   const controller: FindController = {
     open() {
-      findUI.open = true;
+      findUI.set({ open: true });
       if (viewRef) {
         const st = key.getState(viewRef.state) as FindState | undefined;
         if (st?.query) commit({ matches: computeMatches(viewRef.state, st.query) });
       }
     },
     close() {
-      findUI.open = false;
+      findUI.set({ open: false });
       commit({ query: "", matches: [], current: 0 });
     },
     setQuery(q) {
-      findUI.query = q;
+      findUI.set({ query: q });
       if (!viewRef) return;
       commit({ query: q, matches: computeMatches(viewRef.state, q), current: 0 });
     },
