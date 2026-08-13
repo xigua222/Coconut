@@ -1,0 +1,631 @@
+/**
+ * 编辑器与 coconut UI 全面融合:
+ * - Crepe 主题变量映射到 coconut token(surface→soft 让代码块/公式/工具栏
+ *   自然呈现柔和底色,不再像"嵌着的独立区块")
+ * - 内容区与主面板一体:内容自然流动(无撑满),居中文章排版
+ * - 阅读/编辑两态排版完全一致,切换零视觉跳动
+ * - 所有浮层(工具栏/链接浮层/代码块头部)统一为 coconut 卡片:
+ *   panel 底 + line 描边 + shadow-md + 元件级圆角,按钮比例对齐顶栏 28-30px
+ */
+.milkdown {
+  --crepe-color-background: var(--panel);
+  --crepe-color-on-background: var(--ink);
+  --crepe-color-surface: var(--soft);
+  --crepe-color-surface-low: var(--soft);
+  --crepe-color-on-surface: var(--ink);
+  --crepe-color-on-surface-variant: var(--mut);
+  --crepe-color-outline: var(--line);
+  --crepe-color-primary: var(--acc);
+  --crepe-color-secondary: var(--soft);
+  --crepe-color-on-secondary: var(--ink);
+  --crepe-color-inverse: var(--ink);
+  --crepe-color-on-inverse: var(--panel);
+  --crepe-color-inline-code: var(--acc);
+  --crepe-color-inline-area: var(--soft);
+  --crepe-color-error: var(--acc);
+  --crepe-color-hover: color-mix(in srgb, var(--ink) 5%, transparent);
+  --crepe-color-selected: var(--acc-soft);
+
+  --crepe-shadow-1: var(--shadow-sm);
+  --crepe-shadow-2: var(--shadow-md);
+
+  --crepe-base-font-size: var(--editor-font-size, 16.5px);
+  --crepe-font-default: var(--editor-font-family, sans-serif);
+  --crepe-font-title: var(--editor-font-family, sans-serif);
+  --crepe-font-code: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+}
+
+/* ===== 内容区:与主面板一体,自然流动 ===== */
+.crepe .ProseMirror {
+  max-width: var(--editor-measure, 700px);
+  margin: 0 auto;
+  padding: 52px 48px 90px;
+  line-height: 1.95;
+  color: color-mix(in srgb, var(--ink) 93%, transparent);
+  transition: background-color var(--dur-theme) ease, color var(--dur-theme) ease;
+}
+
+/* 正文统一文本光标:文档始终可编辑,点击即输入 */
+.crepe .ProseMirror {
+  cursor: text;
+}
+
+/* ===== 浮动工具栏:紧凑 coconut 卡片(比例对齐顶栏图标按钮) ===== */
+.milkdown .milkdown-toolbar {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: var(--r-item);
+  box-shadow: var(--shadow-md);
+  padding: 3px;
+  gap: 2px;
+  font-family: inherit;
+  /* 只用透明度过渡:浮层位置由 floating-ui 的 transform 控制,
+     动画绝不能碰 transform */
+  animation: rd-fade var(--dur-quick) ease;
+}
+
+.milkdown .milkdown-toolbar .divider {
+  width: 1px;
+  height: 16px;
+  margin: 0 3px;
+  flex: none;
+  background: var(--line);
+}
+
+.milkdown .milkdown-toolbar .toolbar-item {
+  width: 28px;
+  height: 28px;
+  margin: 0;
+  padding: 0;
+  flex: none;
+  display: grid;
+  place-items: center;
+  border-radius: 8px;
+  color: var(--mut);
+  transition: background-color var(--dur-quick) ease, color var(--dur-quick) ease;
+}
+
+.milkdown .milkdown-toolbar .toolbar-item svg {
+  width: 16px;
+  height: 16px;
+  color: inherit;
+  fill: currentColor;
+}
+
+.milkdown .milkdown-toolbar .toolbar-item:hover {
+  background: var(--soft);
+  color: var(--ink);
+}
+
+.milkdown .milkdown-toolbar .toolbar-item:active {
+  background: var(--soft);
+}
+
+.milkdown .milkdown-toolbar .toolbar-item.active {
+  background: var(--acc-soft);
+  color: var(--acc);
+}
+
+/* ===== 链接浮层(预览/编辑):同款 coconut 卡片 ===== */
+.milkdown .milkdown-link-preview > .link-preview,
+.milkdown .milkdown-link-edit > .link-edit {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: var(--r-item);
+  box-shadow: var(--shadow-md);
+  font-family: inherit;
+  animation: rd-fade var(--dur-quick) ease;
+}
+
+.milkdown .milkdown-link-preview > .link-preview {
+  height: 34px;
+  padding: 4px 6px;
+  gap: 4px;
+}
+
+.milkdown .milkdown-link-preview > .link-preview > .link-display {
+  font-size: 12.5px;
+  color: var(--acc);
+  width: 220px;
+}
+
+.milkdown .milkdown-link-preview > .link-preview > .link-icon,
+.milkdown .milkdown-link-preview > .link-preview > .button,
+.milkdown .milkdown-link-edit > .link-edit > .button {
+  border-radius: 8px;
+  color: var(--mut);
+  display: grid;
+  place-items: center;
+  transition: background-color var(--dur-quick) ease, color var(--dur-quick) ease;
+}
+
+.milkdown .milkdown-link-preview > .link-preview > .link-icon svg,
+.milkdown .milkdown-link-preview > .link-preview > .button svg,
+.milkdown .milkdown-link-edit > .link-edit > .button svg {
+  width: 16px;
+  height: 16px;
+  color: inherit;
+  fill: currentColor;
+}
+
+.milkdown .milkdown-link-preview > .link-preview > .link-icon:hover,
+.milkdown .milkdown-link-preview > .link-preview > .button:hover,
+.milkdown .milkdown-link-edit > .link-edit > .button:hover {
+  background: var(--soft);
+  color: var(--ink);
+}
+
+.milkdown .milkdown-link-edit > .link-edit {
+  height: 34px;
+  padding: 4px 6px 4px 12px;
+}
+
+.milkdown .milkdown-link-edit > .link-edit > .input-area {
+  font-size: 12.5px;
+  color: var(--ink);
+}
+
+.milkdown .milkdown-link-edit > .link-edit > .input-area::placeholder {
+  color: var(--mut);
+}
+
+/* ===== 公式行内编辑浮层:同款 coconut 卡片 ===== */
+.milkdown .milkdown-latex-inline-edit {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: var(--r-item);
+  box-shadow: var(--shadow-md);
+  padding: 6px 8px 6px 12px;
+  animation: rd-fade var(--dur-quick) ease;
+}
+
+.milkdown .milkdown-latex-inline-edit .container button {
+  width: 24px;
+  height: 24px;
+  display: grid;
+  place-items: center;
+  border-radius: 8px;
+  color: var(--mut);
+  transition: background-color var(--dur-quick) ease, color var(--dur-quick) ease;
+}
+
+.milkdown .milkdown-latex-inline-edit .container button:hover {
+  background: var(--soft);
+  color: var(--ink);
+}
+
+/* ===== 防御:悬浮手柄/拖拽光标/斜杠菜单已在 Crepe 层关闭,样式层兜底隐藏 ===== */
+.milkdown .milkdown-block-handle,
+.milkdown .crepe-drop-cursor,
+.milkdown .milkdown-slash-menu {
+  display: none !important;
+}
+
+/* ===== 代码块:soft 卡片 + coconut 头部 ===== */
+.milkdown .milkdown-code-block {
+  border-radius: var(--r-card);
+  /* 不能在这里 overflow: hidden——语言下拉(.language-picker)以 absolute
+     挂在代码块内部,容器裁剪会把 410px 高的下拉列表拦腰截断(比例不对/被遮挡)。
+     圆角裁切下沉到 .cm-editor 自身(见下) */
+  margin: 20px 0;
+}
+
+.milkdown .milkdown-code-block .cm-editor {
+  border-radius: 0 0 var(--r-card) var(--r-card);
+  overflow: hidden;
+}
+
+/* 语言下拉只向下展开(bottom-start,无 flip),列表高度随视口收缩,
+   避免代码块靠近窗口底部时下拉超出可视区被主面板裁掉 */
+.milkdown .milkdown-code-block .language-list {
+  max-height: min(410px, 40vh);
+}
+
+/* 语言下拉浮层:独立卡片。原 .list-wrapper 用 --soft 底(与代码块同色)
+   且无描边、仅弱阴影 → 完全融进代码块、没有"浮层"感。改成 panel 白底
+   + line2 描边 + shadow-lg 强阴影,与代码块 soft 底拉开层次;
+   宽度 240→200,语言名短,原宽度两侧大片留白、比例发空 */
+.milkdown .milkdown-code-block .list-wrapper {
+  background: var(--panel);
+  border: 1px solid var(--line2);
+  border-radius: var(--r-card);
+  box-shadow: var(--shadow-lg);
+  width: 200px;
+  padding-top: 10px;
+}
+
+/* 搜索框圆角对齐卡片,描边用中性线、聚焦时才亮品牌红 */
+.milkdown .milkdown-code-block .search-box {
+  border-radius: 8px;
+  outline: 1px solid var(--line2);
+}
+.milkdown .milkdown-code-block .search-box:has(input:focus) {
+  outline: 2px solid var(--acc);
+}
+
+/* 列表项 hover:用更明显的 soft 反馈(原 hover 太弱) */
+.milkdown .milkdown-code-block .language-list-item:hover {
+  background: var(--soft);
+}
+
+.milkdown .milkdown-code-block .cm-editor {
+  font-size: 12.5px;
+  line-height: 1.75;
+}
+
+/* 代码块行号:柔灰(用 --mut 这个次级文字 token),可读但不抢戏。
+   milkdown code-mirror 样式只设了 gutter 背景,未给行号上色 → 行号默认
+   继承墨色(近黑);CodeMirror baseTheme 又给 .cm-gutters 塞了个蓝灰
+   默认色;更要命的是 .cm-activeLineGutter 带了个 #2c313a 近黑背景
+   (CM 深色主题遗留),光标所在行号格会整块变黑。这里把整条 gutter 链
+   (gutters/lineNumbers/gutterElement/activeLineGutter)的文字色统一成
+   --mut,并把当前行号格背景清成透明,!important 防止 CM 高优规则覆盖。
+   注意:行号既不能继承墨色变"全黑",也不能压得太浅变"看不清",
+   --mut(#8b8683)是设计系统里现成的次级灰,正好居中 */
+.milkdown .milkdown-code-block .cm-gutters,
+.milkdown .milkdown-code-block .cm-lineNumbers,
+.milkdown .milkdown-code-block .cm-gutterElement,
+.milkdown .milkdown-code-block .cm-activeLineGutter {
+  color: var(--mut) !important;
+  font-variant-numeric: tabular-nums;
+}
+
+.milkdown .milkdown-code-block .cm-activeLineGutter {
+  background: transparent !important;
+}
+
+.milkdown .milkdown-code-block .cm-gutterElement {
+  font-size: 0.92em;
+}
+
+/* 代码正文:墨色实色。
+   去掉默认 One Dark 主题后,.cm-content 不再被 #abb2bf 覆盖,会继承
+   codemirror-host 的墨色;这里仍显式锁成实色墨,保证代码清晰可读、
+   彻底告别"发淡看不清"。语法着色由后续浅色 highlight 主题补充 */
+.milkdown .milkdown-code-block .cm-content,
+.milkdown .milkdown-code-block .cm-line {
+  color: var(--ink);
+  caret-color: var(--ink);
+}
+
+/* 代码选区 / 折叠手柄:对齐 coconut 品牌色,不再用 CM 默认蓝 */
+.milkdown .milkdown-code-block .cm-selectionBackground {
+  background: var(--acc-soft) !important;
+}
+
+.milkdown .milkdown-code-block .cm-foldPlaceholder {
+  background: var(--soft);
+  color: var(--mut);
+  border: none;
+  border-radius: 4px;
+  padding: 0 6px;
+}
+
+/* 代码块语言/复制等头部按钮:小号、墨色 */
+.milkdown .milkdown-code-block button {
+  font-family: inherit;
+  font-size: 10.5px;
+  letter-spacing: 0.06em;
+  color: var(--mut);
+  border-radius: 6px;
+}
+
+.milkdown .milkdown-code-block button:hover {
+  color: var(--ink);
+  background: var(--soft);
+}
+
+/* 占位提示 */
+.milkdown .crepe-placeholder {
+  color: var(--mut);
+  font-style: normal;
+  font-family: inherit;
+}
+
+/* ===== 表格:完整可读网格 + coconut 圆角卡片 ===== */
+.milkdown .milkdown-table-block {
+  margin: 18px 0;
+  /* 外框:给 overflow 圆角一个可见的描边。原先只有 border-radius+overflow:hidden
+     而无填充无边框,圆角虽裁了但"看不见"(网格线在角上被斜切成豁口,像直角)。
+     加 1px 描边后圆角作为卡片轮廓清晰可辨 */
+  border: 1px solid var(--line);
+  border-radius: var(--r-card);
+  overflow: hidden;
+  font-size: 0.92em;
+}
+
+.milkdown .milkdown-table-block table {
+  /* 必须用 separate:collapse 模式下浏览器忽略 td/th 的 border-radius,
+     无法做出圆角;且相邻格边框会重叠。改 separate + border-spacing:0,
+     配合"单元格只画 下+右 内边"得到干净单线网格 */
+  border-collapse: separate;
+  border-spacing: 0;
+  width: 100%;
+  /* Milkdown 给 table 设了 overflow:hidden 但 border-radius 为 0 →
+     选中态 .selectedCell::after(position:absolute、CB=td,是 table 的后代)
+     被裁成直角矩形,红选区四个角是尖的、不跟随外框圆角。
+     给 table 同款 --r-card 圆角后,overflow 裁剪即变圆角,选区贴合外框 */
+  border-radius: var(--r-card);
+}
+
+/* 单元格只画 下边 + 右边 → 相邻单元格共享一条单线,绝不重叠。
+   外围四边(顶/左,以及末列右、末行下)统一交给 .milkdown-table-block 的
+   border 承担,因此网格与外框都是单线,圆角处不会 double。
+   Milkdown 默认 td 边框是 --outline 再 80% 透明(≈2% 墨色),几乎不可见 */
+.milkdown .milkdown-table-block th,
+.milkdown .milkdown-table-block td {
+  /* 顶/左显式清零:盖掉 Milkdown 基线那条 80% 透明的残边(虽近不可见,
+     主题若改动会冒出鬼线);只保留下+右两条内边 */
+  border-top: 0;
+  border-left: 0;
+  border-bottom: 1px solid var(--line);
+  border-right: 1px solid var(--line);
+  padding: 9px 10px;
+}
+
+.milkdown .milkdown-table-block th {
+  text-align: left;
+  font-weight: 800;
+  font-size: 12px;
+  letter-spacing: 0.08em;
+  color: var(--ink);
+  background: transparent;
+  /* 表头分隔加重,与表体拉开层次 */
+  border-bottom: 2px solid var(--line2);
+}
+
+/* 末列不画右边:右边由外框承担,避免与外框 double */
+.milkdown .milkdown-table-block th:last-child,
+.milkdown .milkdown-table-block td:last-child {
+  border-right: 0;
+}
+
+/* 末行不画下边:下边由外框承担(Milkdown GFM 表无 thead,tr:last-child 即末行) */
+.milkdown .milkdown-table-block tr:last-child th,
+.milkdown .milkdown-table-block tr:last-child td {
+  border-bottom: 0;
+}
+
+/* ===== 表格手柄 / 操作浮层:统一为 coconut 卡片 =====
+   Milkdown 默认手柄图标 fill = --crepe-color-outline(--line,10%墨)
+   在 --soft 底上几乎看不见;改 currentColor 后由各元素 color 接管 */
+.milkdown .milkdown-table-block .handle svg,
+.milkdown .milkdown-table-block .add-button svg {
+  fill: currentColor;
+}
+
+/* 行/列拖拽抓手 & 添加行列按钮:小号 coconut 胶囊。
+   原 surface(--soft)底 + 无描边 + 图标填 --line → 淡到看不见。
+   改 panel 底 + line 描边 + 图标 --mut,清晰可辨 */
+.milkdown .milkdown-table-block .cell-handle,
+.milkdown .milkdown-table-block .line-handle .add-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  box-shadow: var(--shadow-sm);
+  color: var(--mut);
+  transition: background-color var(--dur-quick) ease,
+    color var(--dur-quick) ease, border-color var(--dur-quick) ease;
+}
+
+.milkdown .milkdown-table-block .cell-handle:hover,
+.milkdown .milkdown-table-block .line-handle .add-button:hover {
+  background: var(--soft);
+  color: var(--ink);
+  border-color: var(--line2);
+}
+
+.milkdown .milkdown-table-block .cell-handle:active,
+.milkdown .milkdown-table-block .line-handle .add-button:active {
+  background: var(--acc-soft);
+  color: var(--acc);
+  border-color: var(--acc-soft);
+}
+
+/* 操作浮层(对齐 / 删除):同款 coconut 卡片,圆角/描边/阴影对齐
+   浮动工具栏与链接浮层。原为裸 8px 圆角 + 无描边 + shadow-1,
+   是编辑器里唯一"不合规"的浮层 → 圆角观感不统一 */
+.milkdown .milkdown-table-block .cell-handle .button-group {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: var(--r-item);
+  box-shadow: var(--shadow-md);
+  padding: 3px;
+  gap: 2px;
+}
+
+/* 操作按钮:比例对齐工具栏图标按钮(28×28、8px 圆角、--mut→--ink) */
+.milkdown .milkdown-table-block .cell-handle .button-group button {
+  width: 28px;
+  height: 28px;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  place-items: center;
+  border-radius: 8px;
+  color: var(--mut);
+  transition: background-color var(--dur-quick) ease, color var(--dur-quick) ease;
+}
+
+.milkdown .milkdown-table-block .cell-handle .button-group button svg {
+  width: 16px;
+  height: 16px;
+}
+
+.milkdown .milkdown-table-block .cell-handle .button-group button:hover {
+  background: var(--soft);
+  color: var(--ink);
+}
+
+.milkdown .milkdown-table-block .cell-handle .button-group button:active {
+  background: var(--acc-soft);
+  color: var(--acc);
+}
+
+/* ===== coconut 排版:标题 / 段落 / 列表 / 引用 / 分割线 / 图片 ===== */
+.crepe .ProseMirror h1,
+.crepe .ProseMirror h2,
+.crepe .ProseMirror h3,
+.crepe .ProseMirror h4,
+.crepe .ProseMirror h5,
+.crepe .ProseMirror h6 {
+  font-family: var(--editor-font-family, sans-serif);
+  font-weight: 800;
+  color: var(--ink);
+  letter-spacing: -0.01em;
+  line-height: 1.3;
+  margin: 40px 0 14px;
+}
+
+.crepe .ProseMirror h1 {
+  font-size: 34px;
+  letter-spacing: -0.02em;
+  line-height: 1.25;
+  margin: 0 0 22px;
+  border-bottom: none;
+  padding-bottom: 0;
+}
+
+.crepe .ProseMirror h2 {
+  font-size: 22px;
+  margin-top: 48px;
+}
+
+.crepe .ProseMirror h3 {
+  font-size: 18px;
+  margin-top: 36px;
+}
+
+.crepe .ProseMirror h4,
+.crepe .ProseMirror h5,
+.crepe .ProseMirror h6 {
+  font-size: 15.5px;
+  margin-top: 28px;
+}
+
+.crepe .ProseMirror p {
+  margin: 0 0 16px;
+  line-height: 1.95;
+  color: color-mix(in srgb, var(--ink) 93%, transparent);
+}
+
+/* ===== 列表:可见标记 + 紧凑行距 + 标记对齐首行 =====
+   Milkdown 把列表渲染成 div.milkdown-list-item-block(非 ul/ol),每项是
+   li.list-item(display:flex)→ [label-wrapper 标记][children 正文]。
+   原问题:① 标记填 --crepe-color-outline(--line,10%墨)几乎看不见;
+   ② 列表项里的 <p> 继承正文 1.95 行高 → 列表很空、标记与文字光学错位 */
+.crepe .ProseMirror .milkdown-list-item-block,
+.crepe .ProseMirror .milkdown-list-item-block li,
+.crepe .ProseMirror .milkdown-list-item-block p {
+  line-height: 1.6;
+}
+
+/* 抵消 Milkdown reset 的 .ProseMirror p{padding:4px 0}:那段内边距让列表项
+   文字比标记低 4px(标记居中在 label-wrapper,文字却被顶 padding 下移),
+   也让列表行距偏大。列表里归零,由 line-height 统一控制间距 */
+.crepe .ProseMirror .milkdown-list-item-block p {
+  padding: 0;
+}
+
+/* 标记(无序圆点 / 有序序号 / 勾选框):--line → --mut,清晰可辨 */
+.crepe .ProseMirror .milkdown-list-item-block li .label-wrapper {
+  color: var(--mut);
+  /* 勾选框可点击(任务项):给手型提示可勾选 */
+  cursor: pointer;
+  /* 高度跟随行高(1.6em),让标记垂直居中点对齐首行文字居中点。
+     Milkdown 原固定 32px 与 1.95 行高绑定;行高收紧后不同步,标记会偏低 */
+  height: 1.6em;
+}
+
+.crepe .ProseMirror .milkdown-list-item-block li .label-wrapper svg {
+  fill: var(--mut);
+}
+
+.crepe .ProseMirror .milkdown-list-item-block li .label-wrapper .label {
+  height: 1.6em;
+  /* 原 padding:4px 0 把有序序号往下顶偏,移除让其随 flex 自然居中 */
+  padding: 0;
+}
+
+.crepe .ProseMirror blockquote {
+  margin: 22px 0;
+  padding: 16px 20px;
+  background: var(--soft);
+  border-left: none;
+  /* 左侧贴齐竖条不做圆角,仅右侧保留卡片圆角 */
+  border-radius: 0 var(--r-card) var(--r-card) 0;
+  color: color-mix(in srgb, var(--ink) 92%, transparent);
+  font-size: 0.98em;
+}
+
+/* 覆盖 Crepe 默认 ::before:胶囊圆头竖条 → 方头、通高,紧贴左侧直角 */
+.crepe .ProseMirror blockquote::before {
+  border-radius: 0;
+  top: 0;
+  bottom: 0;
+}
+
+.crepe .ProseMirror blockquote p {
+  margin: 0;
+  color: inherit;
+}
+
+.crepe .ProseMirror code {
+  font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  font-size: 0.88em;
+  background: var(--soft);
+  border-radius: 6px;
+  padding: 2px 6px;
+  color: var(--acc);
+}
+
+.crepe .ProseMirror hr {
+  border: none;
+  border-top: 2px solid var(--line2);
+  margin: 40px 0;
+}
+
+.crepe .ProseMirror img {
+  border-radius: var(--r-card);
+  max-width: 100%;
+}
+
+.crepe .ProseMirror a {
+  color: var(--acc);
+  text-decoration: none;
+}
+
+.crepe .ProseMirror a:hover {
+  text-decoration: underline;
+}
+
+/* ===== ==高亮==(==x== → <mark class="hl">) ===== */
+.crepe .ProseMirror mark.hl {
+  background-color: var(--hl);
+  color: inherit;
+  border-radius: 4px;
+  padding: 0 0.15em;
+}
+
+/* ===== 文内搜索(⌘F)高亮 ===== */
+.crepe .ProseMirror .mdreader-find {
+  background-color: var(--hl);
+  color: inherit;
+  border-radius: 3px;
+  box-decoration-break: clone;
+  -webkit-box-decoration-break: clone;
+}
+
+.crepe .ProseMirror .mdreader-find.mdreader-find-cur {
+  background-color: var(--acc);
+  color: var(--panel);
+}
+
+/* ===== 智能换行:单换行(soft break)渲染为换行 =====
+   Milkdown 把 md 里的单换行映射为 isInline hardbreak span(内容是空格),
+   默认是 inline 元素 → 显示成空格。这里转成 block 让其独占一行。 */
+.crepe .ProseMirror span[data-type="hardbreak"][data-is-inline="true"] {
+  display: block;
+}

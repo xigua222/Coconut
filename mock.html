@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>coconut (Mock)</title>
+  </head>
+  <body>
+    <div id="app"></div>
+    <script type="module">
+      // 先注入 Tauri mock,再加载正式入口(顺序保证)
+      await import("/src/mock-tauri.ts");
+      await import("/src/main.ts");
+      // 调试辅助:?open=1 时自动打开一个文档;?autotab=1 时自动新建空白文档;
+      // ?search=1 时自动打开 ⌘K 搜索浮层
+      const params = new URLSearchParams(location.search);
+      if (params.get("open") === "1") {
+        setTimeout(() => {
+          try {
+            window.__mockEmit("open-file", { path: "/mock/文档一.md" });
+            document.title = "coconut (emitted)";
+          } catch (e) {
+            document.title = "coconut (emit failed: " + String(e) + ")";
+          }
+        }, 3000);
+      }
+      if (params.get("autotab") === "1") {
+        setTimeout(async () => {
+          const { tabStore } = await import("/src/lib/tabs/tabStore.svelte.ts");
+          tabStore.newTab();
+          document.title = "coconut (new tab created)";
+        }, 3000);
+      }
+      if (params.get("search") === "1") {
+        setTimeout(async () => {
+          const { tabStore } = await import("/src/lib/tabs/tabStore.svelte.ts");
+          tabStore.searchOpen = true;
+          document.title = "coconut (search opened)";
+        }, 3000);
+      }
+    </script>
+  </body>
+</html>

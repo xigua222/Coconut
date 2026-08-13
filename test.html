@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Crepe 渲染测试</title>
+    <style>
+      /* 复刻 app.css 的主题 token 与编辑器容器布局 */
+      :root,
+      :root[data-theme="light"] {
+        --bg: #f6f7f9;
+        --bg-panel: #ffffff;
+        --bg-hover: #eceef1;
+        --bg-selected: #dde7f8;
+        --fg: #1f2328;
+        --fg-muted: #656d76;
+        --border: #d9dee3;
+        --accent: #2f6fed;
+        --accent-fg: #ffffff;
+        --danger: #d1242f;
+        --hl: #ffe9ad;
+        --code-bg: #f0f2f5;
+        --code-fg: #24292f;
+        --editor-font-size: 16px;
+        --editor-font-family: system-ui, -apple-system, "PingFang SC", sans-serif;
+      }
+      html,
+      body {
+        margin: 0;
+        height: 100%;
+        overflow: hidden;
+      }
+      body {
+        font-family: system-ui, sans-serif;
+      }
+      .pane {
+        position: relative;
+        height: 100%;
+        overflow-y: auto;
+        background: var(--bg-panel);
+      }
+      .editor-host {
+        height: 100%;
+      }
+      .mode-toggle {
+        position: fixed;
+        top: 12px;
+        right: 14px;
+        z-index: 100;
+        padding: 3px 10px;
+        border-radius: 999px;
+        font-size: 12px;
+        background: #eceef1;
+      }
+      #log {
+        position: fixed;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        height: 90px;
+        overflow-y: auto;
+        font: 11px/1.5 monospace;
+        background: rgba(0, 0, 0, 0.8);
+        color: #7dd3fc;
+        padding: 4px 8px;
+        z-index: 200;
+        white-space: pre-wrap;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="pane">
+      <div class="editor-host" id="host"></div>
+    </div>
+    <button class="mode-toggle" id="toggle">切换只读</button>
+    <button class="mode-toggle" id="find" style="right:110px">打开搜索</button>
+    <div id="log"></div>
+    <script type="module" src="/src/test-main.ts"></script>
+  </body>
+</html>

@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>coconut 目录面板直测</title>
+    <style>
+      html,
+      body {
+        margin: 0;
+        height: 100%;
+      }
+      body {
+        font-family: system-ui, sans-serif;
+        background: var(--bg, #f3f2f2);
+        color: var(--ink, #201e1d);
+        padding: 20px;
+      }
+      #log {
+        font: 11px/1.6 monospace;
+        white-space: pre-wrap;
+      }
+    </style>
+  </head>
+  <body>
+    <h3 style="margin-top: 0">目录面板直测</h3>
+    <div id="log"></div>
+    <script type="module" src="/src/test-tree.ts"></script>
+  </body>
+</html>

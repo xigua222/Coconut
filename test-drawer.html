@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>coconut 设置抽屉直测</title>
+    <style>
+      html,
+      body {
+        margin: 0;
+        height: 100%;
+      }
+      #log {
+        position: fixed;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        z-index: 999;
+        height: 110px;
+        overflow-y: auto;
+        font: 11px/1.5 monospace;
+        background: rgba(0, 0, 0, 0.85);
+        color: #7dd3fc;
+        padding: 4px 8px;
+        white-space: pre-wrap;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="log"></div>
+    <script type="module" src="/src/test-drawer.ts"></script>
+  </body>
+</html>
