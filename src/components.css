@@ -756,38 +756,6 @@
   background: var(--acc);
 }
 
-.settings-drawer .seg {
-  display: flex;
-  background: var(--soft);
-  border-radius: 99px;
-  padding: 3px;
-  gap: 2px;
-}
-
-.settings-drawer .seg button {
-  flex: 1;
-  padding: 6px 10px;
-  border: none;
-  border-radius: 99px;
-  font-family: inherit;
-  font-size: 12px;
-  font-weight: 600;
-  background: transparent;
-  color: var(--mut);
-  cursor: pointer;
-  transition: background-color var(--dur-quick) var(--ease-out), color var(--dur-quick) var(--ease-out),
-    transform var(--dur-quick) var(--ease-out);
-}
-
-.settings-drawer .seg button:active {
-  transform: scale(0.95);
-}
-
-.settings-drawer .seg button.on {
-  background: var(--ink);
-  color: var(--panel);
-}
-
 .settings-drawer .switch {
   width: 40px;
   height: 24px;
