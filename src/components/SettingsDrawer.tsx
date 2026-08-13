@@ -54,6 +54,7 @@ export function SettingsDrawer() {
       description="coconut 0.2.0"
       width={296}
       closeLabel="关闭设置"
+      className="settings-drawer"
       footer={
         <span className="drawer-version">
           <span className="drawer-dot" />

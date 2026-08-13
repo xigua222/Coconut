@@ -14,16 +14,69 @@ class TabStore extends ReactiveStore {
   activeId: string | null = null;
   /** 待确认关闭的会话(有未保存修改),由 ConfirmModal 消费 */
   pendingClose: DocumentSession | null = null;
+
+  // 以下热字段用访问器属性:任何直接赋值(组件里 store.field = x 的写法,
+  // 自 Svelte $state 时代保留)都会自动 notify,保证 React 订阅者重渲染。
+
   /** 设置抽屉可见(原生菜单"设置…"触发) */
-  settingsOpen = false;
+  #_settingsOpen = false;
+  get settingsOpen(): boolean {
+    return this.#_settingsOpen;
+  }
+  set settingsOpen(v: boolean) {
+    if (this.#_settingsOpen !== v) {
+      this.#_settingsOpen = v;
+      this.notify();
+    }
+  }
+
   /** 搜索浮层(⌘K) */
-  searchOpen = false;
+  #_searchOpen = false;
+  get searchOpen(): boolean {
+    return this.#_searchOpen;
+  }
+  set searchOpen(v: boolean) {
+    if (this.#_searchOpen !== v) {
+      this.#_searchOpen = v;
+      this.notify();
+    }
+  }
+
   /** 侧栏展开 */
-  sidebarVisible = true;
+  #_sidebarVisible = true;
+  get sidebarVisible(): boolean {
+    return this.#_sidebarVisible;
+  }
+  set sidebarVisible(v: boolean) {
+    if (this.#_sidebarVisible !== v) {
+      this.#_sidebarVisible = v;
+      this.notify();
+    }
+  }
+
   /** 阅读进度 0-1(顶栏进度条) */
-  progress = 0;
+  #_progress = 0;
+  get progress(): number {
+    return this.#_progress;
+  }
+  set progress(v: number) {
+    if (this.#_progress !== v) {
+      this.#_progress = v;
+      this.notify();
+    }
+  }
+
   /** 当前活动大纲标题索引(TOC 游标) */
-  activeToc = -1;
+  #_activeToc = -1;
+  get activeToc(): number {
+    return this.#_activeToc;
+  }
+  set activeToc(v: number) {
+    if (this.#_activeToc !== v) {
+      this.#_activeToc = v;
+      this.notify();
+    }
+  }
 
   #confirmResolve: ((c: ConfirmChoice) => void) | null = null;
 

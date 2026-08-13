@@ -20,10 +20,11 @@ export class ReactiveStore {
     };
   };
 
-  /** 快照:任何 notify 后版本号 +1,订阅组件重渲染 */
-  getVersion(): number {
+  /** 快照:任何 notify 后版本号 +1,订阅组件重渲染。
+   *  注意必须用箭头属性:传给 useSyncExternalStore 时不能丢失 this。 */
+  getVersion = (): number => {
     return this.#version;
-  }
+  };
 
   /** 状态变更后调用(子类 mutator 末尾;createStore 内部也会调) */
   notify(): void {
