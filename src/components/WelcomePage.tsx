@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { tabStore } from "../lib/tabs/tabStore";
 import { list, clear } from "../lib/files/recent";
 import { basename } from "../lib/utils/platform";
+import { PressDepth } from "./interior/press-depth";
 
 export function WelcomePage() {
   const [recents, setRecents] = useState<string[]>([]);
@@ -22,7 +23,7 @@ export function WelcomePage() {
       <p className="sub">极简、圆角、丝滑。打开一份文档,或把文件拖进窗口。</p>
 
       <div className="actions">
-        <button className="btn primary" onClick={() => void tabStore.openFiles()}>
+        <PressDepth className="welcome-primary" onClick={() => void tabStore.openFiles()}>
           <svg
             width="14"
             height="14"
@@ -35,10 +36,8 @@ export function WelcomePage() {
             <path d="M6 4h9l5 5v11a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2z" />
           </svg>
           打开文件
-        </button>
-        <button className="btn" onClick={() => tabStore.newTab()}>
-          新建文档
-        </button>
+        </PressDepth>
+        <PressDepth onClick={() => tabStore.newTab()}>新建文档</PressDepth>
       </div>
 
       {recents.length > 0 && (

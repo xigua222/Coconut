@@ -774,83 +774,42 @@
   margin-top: 18px;
 }
 
-/* --- SettingsDrawer --- */
-.drawer-backdrop {
-  position: fixed;
-  inset: 0;
-  z-index: 40;
-  background: color-mix(in srgb, var(--ink) 8%, transparent);
-}
-
-.drawer {
-  position: fixed;
-  top: 16px;
-  bottom: 16px;
-  right: 16px;
-  width: 296px;
-  z-index: 50;
-  box-sizing: border-box;
-  background: var(--panel);
-  border: 1px solid var(--line);
-  border-radius: var(--r);
-  box-shadow: var(--shadow-lg);
-  padding: 22px;
-  display: flex;
-  flex-direction: column;
-  gap: 22px;
-  overflow-y: auto;
-  overscroll-behavior: contain;
-  transform: translateX(112%);
-  transition: transform var(--dur-move) var(--ease-out), background-color var(--dur-theme) ease;
-}
-
-.drawer.open {
-  transform: translateX(0);
-}
-
-.drawer .head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-}
-
-.drawer .title {
-  font-weight: 800;
-  font-size: 16px;
-}
-
-.drawer .close {
-  width: 28px;
-  height: 28px;
-  display: grid;
-  place-items: center;
-  border: none;
-  border-radius: calc(var(--r) * 0.55);
-  background: transparent;
-  color: var(--mut);
-  cursor: pointer;
-  transition: background-color var(--dur-quick) ease, color var(--dur-quick) ease;
-}
-
-.drawer .close:hover {
-  background: var(--soft);
-  color: var(--ink);
-}
-
-.drawer .group {
+/* --- SettingsDrawer(interior Drawer) --- */
+.drawer-group {
   display: flex;
   flex-direction: column;
   gap: 9px;
 }
 
-.drawer .group-label {
+.drawer-group + .drawer-group {
+  margin-top: 18px;
+}
+
+.drawer-group-label {
   font-size: 10px;
   letter-spacing: 0.16em;
   color: var(--mut);
   font-weight: 800;
 }
 
-.drawer .seg {
+.drawer-version {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-family: ui-monospace, Menlo, monospace;
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  color: var(--mut);
+}
+
+.drawer-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 99px;
+  background: var(--acc);
+}
+
+.settings-drawer .seg {
   display: flex;
   background: var(--soft);
   border-radius: 99px;
@@ -858,7 +817,7 @@
   gap: 2px;
 }
 
-.drawer .seg button {
+.settings-drawer .seg button {
   flex: 1;
   padding: 6px 10px;
   border: none;
@@ -873,16 +832,16 @@
     transform var(--dur-quick) var(--ease-out);
 }
 
-.drawer .seg button:active {
+.settings-drawer .seg button:active {
   transform: scale(0.95);
 }
 
-.drawer .seg button.on {
+.settings-drawer .seg button.on {
   background: var(--ink);
   color: var(--panel);
 }
 
-.drawer .switch {
+.settings-drawer .switch {
   width: 40px;
   height: 24px;
   border: none;
@@ -894,11 +853,11 @@
   transition: background-color var(--dur-quick) var(--ease-out);
 }
 
-.drawer .switch.on {
+.settings-drawer .switch.on {
   background: var(--acc);
 }
 
-.drawer .knob {
+.settings-drawer .knob {
   position: absolute;
   top: 3px;
   left: 0;
@@ -912,11 +871,11 @@
   transition: transform 0.32s var(--ease-spring);
 }
 
-.drawer .switch.on .knob {
+.settings-drawer .switch.on .knob {
   transform: translateX(19px);
 }
 
-.drawer .export-btn {
+.settings-drawer .export-btn {
   padding: 8px 12px;
   border: 1px solid var(--line2);
   border-radius: calc(var(--r) * 0.55);
@@ -929,25 +888,12 @@
   transition: background-color var(--dur-quick) ease, transform var(--dur-quick) var(--ease-out);
 }
 
-.drawer .export-btn:hover {
+.settings-drawer .export-btn:hover {
   background: var(--soft);
 }
 
-.drawer .export-btn:active {
+.settings-drawer .export-btn:active {
   transform: scale(0.98);
-}
-
-.drawer .grow {
-  flex: 1;
-}
-
-.drawer .foot {
-  border-top: 2px solid var(--line2);
-  padding-top: 12px;
-  font-family: ui-monospace, Menlo, monospace;
-  font-size: 10px;
-  letter-spacing: 0.08em;
-  color: var(--mut);
 }
 
 /* --- SearchOverlay --- */
@@ -1217,4 +1163,35 @@
 .editor-pane .banner.error {
   border-color: var(--acc);
   color: var(--acc);
+}
+
+/* --- 阅读进度条(interior ReadingProgress,sticky 于内容区顶部) --- */
+.reading-progress-wrap {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  padding: 7px 18px 0;
+  background: color-mix(in srgb, var(--panel) 92%, transparent);
+  backdrop-filter: blur(4px);
+}
+
+/* --- 目录树首次加载骨架(interior useSkeletonSwap) --- */
+.tree-skeleton {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  padding: 6px 12px;
+}
+
+.tree-skeleton span {
+  height: 9px;
+  border-radius: 5px;
+  background: color-mix(in srgb, var(--ink) 12%, transparent);
+}
+
+/* --- 欢迎页主按钮(interior PressDepth 的品牌红变体) --- */
+.welcome .welcome-primary {
+  background: var(--acc);
+  border-color: transparent;
+  color: #fff;
 }

@@ -1,10 +1,12 @@
 /**
- * roundtrip 无损性提示:保存时会被规范化排版(渲染不变)。
- * 由 EditorPane 在 !lossless 时渲染;"不再提醒"写入设置。
+ * roundtrip 无损性提示(interior CollapsibleBanner):
+ * 可折叠、可关闭(不再提醒 → 设置持久化)。
+ * 由 EditorPane 在 !lossless 时渲染。
  */
 import type { DocumentSession } from "../lib/files/document";
 import { settingsStore } from "../lib/settings/settingsStore";
 import { useStoreVersion } from "../lib/react/reactive";
+import { CollapsibleBanner } from "./interior/collapsible-banner";
 
 export function NormalizeNotice({ session }: { session: DocumentSession }) {
   useStoreVersion(settingsStore);
@@ -13,13 +15,12 @@ export function NormalizeNotice({ session }: { session: DocumentSession }) {
   if (settingsStore.settings.hideRoundtripNotice || session.lossless) return null;
 
   return (
-    <div className="banner normalize">
-      <span className="text">此文件含保存时会被规范化的写法(渲染效果不变,仅源码排版统一)</span>
-      <span className="actions">
-        <button className="btn" onClick={() => settingsStore.update("hideRoundtripNotice", true)}>
-          不再提醒
-        </button>
-      </span>
-    </div>
+    <CollapsibleBanner
+      title="此文件含保存时会被规范化的写法"
+      description="渲染效果不变,仅源码排版统一。"
+      dismissible
+      dismissLabel="不再提醒"
+      onDismiss={() => settingsStore.update("hideRoundtripNotice", true)}
+    />
   );
 }

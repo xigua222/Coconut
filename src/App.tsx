@@ -4,7 +4,6 @@
  * 内容滚动 → 阅读进度 + 目录联动。
  */
 import { useEffect, useRef } from "react";
-import { AnimatePresence } from "motion/react";
 import { Sidebar } from "./components/Sidebar";
 import { TopBar } from "./components/TopBar";
 import { EditorPane } from "./components/EditorPane";
@@ -23,6 +22,9 @@ import type { DragDropEvent } from "@tauri-apps/api/webview";
 import type { Event } from "@tauri-apps/api/event";
 import { extractOutline, slugify } from "./lib/outline/extractOutline";
 import { useStoreVersion } from "./lib/react/reactive";
+import { useHideOnScroll } from "./components/interior/hide-on-scroll";
+import { ReadingProgress } from "./components/interior/reading-progress";
+import { countStats } from "./lib/utils/count";
 
 export function App() {
   useStoreVersion(tabStore);
@@ -30,7 +32,9 @@ export function App() {
   const session = tabStore.activeTab?.session ?? null;
   useStoreVersion(session);
 
-  const contentRef = useRef<HTMLDivElement | null>(null);
+  /** 内容滚动 → 顶栏隐藏/复现(hide-on-scroll)与阅读进度共用同一滚动容器 */
+  const hideScroll = useHideOnScroll<HTMLDivElement>({});
+  const contentRef = hideScroll.ref;
   const spyRaf = useRef(0);
   /** 关闭请求处理中标志:防止重复点击红按钮/⌘W 叠加挂起的确认链 */
   const closing = useRef(false);
@@ -171,9 +175,19 @@ export function App() {
         <Sidebar />
 
         <div className="main-panel">
-          <TopBar />
+          <TopBar hidden={hideScroll.hidden} />
           <div className="main-body">
             <div className="content" ref={contentRef} onScroll={onContentScroll}>
+              {session?.mode === "wysiwyg" && (
+                <div className="reading-progress-wrap">
+                  <ReadingProgress
+                    scroller={contentRef}
+                    words={countStats(session.md).words}
+                    label="阅读进度"
+                    doneLabel="已读完"
+                  />
+                </div>
+              )}
               {session ? <EditorPane /> : <WelcomePage />}
               {findUI.get().open && <FindBar />}
             </div>
@@ -183,11 +197,9 @@ export function App() {
         </div>
       </div>
 
-      <AnimatePresence>
-        {tabStore.searchOpen && <SearchOverlay key="search-overlay" />}
-        {tabStore.pendingClose && <ConfirmModal key="confirm-modal" />}
-      </AnimatePresence>
+      <SearchOverlay />
       <SettingsDrawer />
+      <ConfirmModal />
     </>
   );
 }

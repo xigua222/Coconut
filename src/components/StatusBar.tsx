@@ -1,11 +1,12 @@
 /**
  * 底部状态栏:左=字数/字符/行数;右=编码(非 UTF-8 时标注转换)+ 保存状态。
+ * 字数用 interior ValueFlash:变化时数字滚动 + 方向箭头(↑绿/↓红)。
  * 数据全部派生自 activeTab.session;内容经 400ms 防抖回写 md,与大纲同拍。
- * 只读徽标暂缺位:编辑器当前无只读模式,菜单"切换只读"落地后再补。
  */
 import { tabStore } from "../lib/tabs/tabStore";
 import { useStoreVersion } from "../lib/react/reactive";
 import { countStats } from "../lib/utils/count";
+import { ValueFlash } from "./interior/value-flash";
 
 export function StatusBar() {
   useStoreVersion(tabStore);
@@ -24,7 +25,7 @@ export function StatusBar() {
         {stats && (
           <>
             <span className="item" title="字数:CJK 逐字 + 拉丁词">
-              字数 {stats.words.toLocaleString()}
+              <ValueFlash value={stats.words} format={(v) => `字数 ${v.toLocaleString()}`} />
             </span>
             <span className="sep">·</span>
             <span className="item" title="字符数:含空白与 Markdown 标记">

@@ -1,16 +1,51 @@
 /**
- * 顶栏:窗口拖拽区 + 文档标题 + 常用操作按钮(源码模式/导出/在访达中显示)
+ * 顶栏:窗口拖拽区 + 文档标题 + 常用操作按钮(源码模式/复制/导出/在访达中显示)
  * + Agent 活动指示器。功能外放:高频操作不再只藏在菜单里。
+ * 按压反馈:interior usePressDepth(spring 缩放,中断友好);hidden 由 App 的
+ * hide-on-scroll 驱动(高度折叠)。
  */
 import { useEffect, useState } from "react";
+import { motion } from "motion/react";
 import { tabStore } from "../lib/tabs/tabStore";
 import { agentActivity } from "../lib/files/agentActivity";
 import { exportCurrentHtml, exportCurrentPdf } from "../lib/files/export";
 import { showInFolder } from "../ipc/commands";
 import { isMac, isWindows } from "../lib/utils/platform";
 import { useStoreVersion } from "../lib/react/reactive";
+import { usePressDepth } from "./interior/press-depth";
+import { CopyButton } from "./interior/copy-button";
 
-export function TopBar() {
+/** 顶栏图标按钮:usePressDepth 提供按下缩放反馈(不改变既有视觉) */
+function ActButton({
+  title,
+  ariaLabel,
+  className,
+  onClick,
+  children,
+}: {
+  title: string;
+  ariaLabel: string;
+  className?: string;
+  onClick?: (e: React.MouseEvent) => void;
+  children: React.ReactNode;
+}) {
+  const { pressed, ref, bind } = usePressDepth({});
+  return (
+    <motion.button
+      ref={ref}
+      {...bind}
+      className={className ? `act ${className}` : "act"}
+      title={title}
+      aria-label={ariaLabel}
+      onClick={onClick}
+      animate={{ scale: pressed ? 0.86 : 1 }}
+      transition={{ type: "spring", stiffness: 520, damping: 34, mass: 0.45 }}>
+      {children}
+    </motion.button>
+  );
+}
+
+export function TopBar({ hidden = false }: { hidden?: boolean }) {
   useStoreVersion(tabStore);
   useStoreVersion(agentActivity);
   const [exportOpen, setExportOpen] = useState(false);
@@ -45,16 +80,22 @@ export function TopBar() {
   }, [exportOpen]);
 
   return (
-    <header className="topbar">
+    <motion.header
+      className="topbar"
+      aria-hidden={hidden}
+      initial={false}
+      animate={{ height: hidden ? 0 : 38, opacity: hidden ? 0 : 1 }}
+      transition={{ type: "spring", stiffness: 150, damping: 27, mass: 1 }}
+      style={{ pointerEvents: hidden ? "none" : undefined }}>
       <span className={title ? "title" : "title dim"}>{title || "coconut"}</span>
 
       {session && (
         <div className="actions" role="toolbar" aria-label="常用操作">
-          <button
-            className={session.mode === "source" ? "act on" : "act"}
+          <ActButton
+            className={session.mode === "source" ? "on" : ""}
             title="源码模式 (⌘E)"
-            onClick={() => session.toggleMode()}
-            aria-label="源码模式">
+            ariaLabel="源码模式"
+            onClick={() => session.toggleMode()}>
             <svg
               width="14"
               height="14"
@@ -67,13 +108,20 @@ export function TopBar() {
               <polyline points="16 18 22 12 16 6" />
               <polyline points="8 6 2 12 8 18" />
             </svg>
-          </button>
+          </ActButton>
+
+          <CopyButton
+            value={session.md}
+            label="复制"
+            copiedLabel="已复制"
+            errorLabel="复制失败"
+          />
 
           <div className="export-wrap">
-            <button
-              className={exportOpen ? "act on" : "act"}
+            <ActButton
+              className={exportOpen ? "on" : ""}
               title="导出"
-              aria-label="导出"
+              ariaLabel="导出"
               onClick={(e) => {
                 e.stopPropagation();
                 setExportOpen(!exportOpen);
@@ -91,7 +139,7 @@ export function TopBar() {
                 <polyline points="7 10 12 15 17 10" />
                 <line x1="12" y1="15" x2="12" y2="3" />
               </svg>
-            </button>
+            </ActButton>
             {exportOpen && (
               <div
                 className="export-pop"
@@ -144,10 +192,9 @@ export function TopBar() {
           </div>
 
           {session.path && (
-            <button
-              className="act"
+            <ActButton
               title={showInFolderLabel}
-              aria-label={showInFolderLabel}
+              ariaLabel={showInFolderLabel}
               onClick={() => void showInFolder(session.path!)}>
               <svg
                 width="14"
@@ -160,7 +207,7 @@ export function TopBar() {
                 strokeLinejoin="round">
                 <path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
               </svg>
-            </button>
+            </ActButton>
           )}
 
           <span
@@ -181,6 +228,6 @@ export function TopBar() {
           />
         </div>
       )}
-    </header>
+    </motion.header>
   );
 }

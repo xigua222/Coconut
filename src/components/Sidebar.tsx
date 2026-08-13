@@ -10,6 +10,7 @@ import { treeStore } from "../lib/files/treeStore";
 import { settingsStore } from "../lib/settings/settingsStore";
 import { modKey } from "../lib/utils/platform";
 import { useStoreVersion } from "../lib/react/reactive";
+import { useSkeletonSwap } from "./interior/skeleton-swap";
 
 const SB_W = 218;
 /** 与全局 --ease-out 一致的出弹曲线 */
@@ -69,6 +70,11 @@ export function Sidebar() {
   const rootName = treeStore.root
     ? (treeStore.root.split(/[/\\]/).filter(Boolean).at(-1) ?? treeStore.root)
     : "";
+
+  /** 首次加载(无数据且扫描中)显示骨架;后台 watch 重扫保持树 + 透明度提示 */
+  const firstLoad = treeStore.loading && treeStore.entries.length === 0;
+  const { showSkeleton } = useSkeletonSwap({ ready: !firstLoad });
+  const SKELETON_W = [88, 95, 80, 92, 85, 70];
 
   return (
     <aside
@@ -144,51 +150,59 @@ export function Sidebar() {
                   </svg>
                 </button>
               </div>
-              <nav className={treeStore.loading ? "tree loading" : "tree"}>
-                {treeStore.visible.map((entry) =>
-                  entry.is_dir ? (
-                    <button
-                      key={entry.path}
-                      className="tree-item dir"
-                      style={{ paddingLeft: 10 + entry.depth * 12 }}
-                      onClick={() => treeStore.toggleDir(entry.path)}
-                      title={entry.path}>
-                      <svg
-                        width="10"
-                        height="10"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth="2.6"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        className={treeStore.expanded.has(entry.path) ? "" : "folded"}>
-                        <polyline points="9 18 15 12 9 6" />
-                      </svg>
-                      <span className="grow dir-name">{entry.name}</span>
-                    </button>
-                  ) : (
-                    <button
-                      key={entry.path}
-                      className="tree-item file"
-                      style={{ paddingLeft: 10 + entry.depth * 12 }}
-                      onClick={() => treeStore.openFile(entry.path)}
-                      title={entry.path}>
-                      <svg
-                        width="12"
-                        height="12"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth="2"
-                        strokeLinecap="round"
-                        strokeLinejoin="round">
-                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-                        <polyline points="14 2 14 8 20 8" />
-                      </svg>
-                      <span className="grow file-name">{entry.name}</span>
-                    </button>
-                  ),
+              <nav className={treeStore.loading && !showSkeleton ? "tree loading" : "tree"}>
+                {showSkeleton ? (
+                  <div className="tree-skeleton" aria-hidden>
+                    {SKELETON_W.map((w, i) => (
+                      <span key={i} style={{ width: `${w}%` }} />
+                    ))}
+                  </div>
+                ) : (
+                  treeStore.visible.map((entry) =>
+                    entry.is_dir ? (
+                      <button
+                        key={entry.path}
+                        className="tree-item dir"
+                        style={{ paddingLeft: 10 + entry.depth * 12 }}
+                        onClick={() => treeStore.toggleDir(entry.path)}
+                        title={entry.path}>
+                        <svg
+                          width="10"
+                          height="10"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="2.6"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          className={treeStore.expanded.has(entry.path) ? "" : "folded"}>
+                          <polyline points="9 18 15 12 9 6" />
+                        </svg>
+                        <span className="grow dir-name">{entry.name}</span>
+                      </button>
+                    ) : (
+                      <button
+                        key={entry.path}
+                        className="tree-item file"
+                        style={{ paddingLeft: 10 + entry.depth * 12 }}
+                        onClick={() => treeStore.openFile(entry.path)}
+                        title={entry.path}>
+                        <svg
+                          width="12"
+                          height="12"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="2"
+                          strokeLinecap="round"
+                          strokeLinejoin="round">
+                          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                          <polyline points="14 2 14 8 20 8" />
+                        </svg>
+                        <span className="grow file-name">{entry.name}</span>
+                      </button>
+                    ),
+                  )
                 )}
                 {treeStore.entries.length === 0 && !treeStore.loading && (
                   <p className="empty">此目录没有 Markdown 文件</p>

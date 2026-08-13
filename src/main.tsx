@@ -1,5 +1,6 @@
 import "./app.css";
 import "./components.css";
+import "./components/interior/interior.css";
 import { createRoot } from "react-dom/client";
 import { App } from "./App";
 import { settingsStore } from "./lib/settings/settingsStore";
