@@ -4,17 +4,22 @@
  */
 import { Drawer } from "./interior/drawer";
 import { SegmentedControl } from "./interior/segmented-control";
+import { Switch } from "./interior/switch";
+import { usePressDepth } from "./interior/press-depth";
 import { settingsStore } from "../lib/settings/settingsStore";
 import type { MeasureLevel, SizeLevel } from "../lib/settings/defaults";
 import { exportCurrentHtml } from "../lib/files/export";
 import { tabStore } from "../lib/tabs/tabStore";
 import { useStoreVersion } from "../lib/react/reactive";
+import { motion } from "motion/react";
 
 export function SettingsDrawer() {
   useStoreVersion(tabStore);
   useStoreVersion(settingsStore);
   const { settings } = settingsStore;
   const open = tabStore.settingsOpen;
+  // 导出按钮是整宽块,用 hook 做按压缩放(不做 3D 卡片)
+  const exportPress = usePressDepth({});
 
   async function exportCurrent() {
     const session = tabStore.activeTab?.session;
@@ -87,19 +92,24 @@ export function SettingsDrawer() {
 
       <div className="drawer-group">
         <span className="drawer-group-label">显示大纲</span>
-        <button
-          className={settings.outlineVisible ? "switch on" : "switch"}
-          onClick={() => settingsStore.update("outlineVisible", !settings.outlineVisible)}
-          aria-label="显示大纲">
-          <span className="knob" />
-        </button>
+        <Switch
+          label="显示大纲"
+          checked={settings.outlineVisible}
+          onCheckedChange={(v) => settingsStore.update("outlineVisible", v)}
+        />
       </div>
 
       <div className="drawer-group">
         <span className="drawer-group-label">导出</span>
-        <button className="export-btn" onClick={() => void exportCurrent()}>
+        <motion.button
+          ref={exportPress.ref}
+          {...exportPress.bind}
+          className="export-btn"
+          onClick={() => void exportCurrent()}
+          animate={{ scale: exportPress.pressed ? 0.97 : 1 }}
+          transition={{ type: "spring", stiffness: 520, damping: 34, mass: 0.45 }}>
           导出当前为 HTML…
-        </button>
+        </motion.button>
       </div>
     </Drawer>
   );

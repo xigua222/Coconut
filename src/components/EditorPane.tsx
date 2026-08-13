@@ -22,6 +22,7 @@ import { isMac, isWindows } from "../lib/utils/platform";
 import { useStoreVersion } from "../lib/react/reactive";
 import { ConflictBanner } from "./ConflictBanner";
 import { NormalizeNotice } from "./NormalizeNotice";
+import { PressDepth } from "./interior/press-depth";
 
 export function EditorPane() {
   useStoreVersion(tabStore);
@@ -236,14 +237,15 @@ export function EditorPane() {
         {session?.error && (
           <div className="banner error">
             <span>保存失败:{session.error}</span>
-            <button
-              className="btn"
+            <PressDepth
+              className="press-sm"
+              depth={2}
               onClick={() => {
                 session.error = null;
                 session.notify();
               }}>
               知道了
-            </button>
+            </PressDepth>
           </div>
         )}
       </div>

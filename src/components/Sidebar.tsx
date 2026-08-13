@@ -11,6 +11,7 @@ import { settingsStore } from "../lib/settings/settingsStore";
 import { modKey } from "../lib/utils/platform";
 import { useStoreVersion } from "../lib/react/reactive";
 import { useSkeletonSwap } from "./interior/skeleton-swap";
+import { PressDepth } from "./interior/press-depth";
 
 const SB_W = 218;
 /** 与全局 --ease-out 一致的出弹曲线 */
@@ -230,7 +231,7 @@ export function Sidebar() {
         <div className="grow" />
 
         <div className="footer">
-          <button title="新建文档" onClick={() => tabStore.newTab()}>
+          <PressDepth className="press-icon" depth={3} aria-label="新建文档" onClick={() => tabStore.newTab()}>
             <svg
               width="15"
               height="15"
@@ -242,8 +243,12 @@ export function Sidebar() {
               <line x1="12" y1="5" x2="12" y2="19" />
               <line x1="5" y1="12" x2="19" y2="12" />
             </svg>
-          </button>
-          <button title="设置" onClick={() => (tabStore.settingsOpen = true)}>
+          </PressDepth>
+          <PressDepth
+            className="press-icon"
+            depth={3}
+            aria-label="设置"
+            onClick={() => (tabStore.settingsOpen = true)}>
             <svg
               width="15"
               height="15"
@@ -257,7 +262,7 @@ export function Sidebar() {
               <line x1="4" y1="17" x2="20" y2="17" />
               <circle cx="15" cy="17" r="2.2" fill="var(--panel)" />
             </svg>
-          </button>
+          </PressDepth>
         </div>
       </div>
     </aside>

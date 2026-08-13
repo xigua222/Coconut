@@ -756,40 +756,6 @@
   background: var(--acc);
 }
 
-.settings-drawer .switch {
-  width: 40px;
-  height: 24px;
-  border: none;
-  border-radius: 99px;
-  background: color-mix(in srgb, var(--mut) 40%, transparent);
-  cursor: pointer;
-  position: relative;
-  padding: 0;
-  transition: background-color var(--dur-quick) var(--ease-out);
-}
-
-.settings-drawer .switch.on {
-  background: var(--acc);
-}
-
-.settings-drawer .knob {
-  position: absolute;
-  top: 3px;
-  left: 0;
-  width: 18px;
-  height: 18px;
-  border-radius: 99px;
-  background: #fff;
-  box-shadow: var(--shadow-sm);
-  transform: translateX(3px);
-  /* 微小回弹(spring)让开关有"拨动"手感 */
-  transition: transform 0.32s var(--ease-spring);
-}
-
-.settings-drawer .switch.on .knob {
-  transform: translateX(19px);
-}
-
 .settings-drawer .export-btn {
   padding: 8px 12px;
   border: 1px solid var(--line2);
@@ -974,6 +940,30 @@
 
 /* --- 欢迎页主按钮(interior PressDepth 的品牌红变体) --- */
 .welcome .welcome-primary {
+  background: var(--acc);
+  border-color: transparent;
+  color: #fff;
+}
+
+/* --- PressDepth 尺寸/品牌变体(前缀选择器提高优先级,盖过 interior 默认 h-9 等) --- */
+.sidebar .footer .press-icon {
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border-radius: 10px;
+}
+
+.confirm-modal .press-sm,
+.editor-pane .banner .press-sm {
+  height: 28px;
+  padding-inline: 12px;
+  border-radius: 99px;
+  font-size: 12px;
+  gap: 6px;
+}
+
+.confirm-modal .press-red,
+.editor-pane .banner .press-red {
   background: var(--acc);
   border-color: transparent;
   color: #fff;
