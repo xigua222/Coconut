@@ -14,7 +14,6 @@ export function WelcomePage() {
 
   return (
     <div className="welcome">
-      <div className="logo">墨</div>
       <h1>
         把 Markdown
         <br />
