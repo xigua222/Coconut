@@ -1479,23 +1479,33 @@ html.mac .sidebar .inner {
 .sidebar .footer {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 2px;
   flex: none;
-  padding: 8px 2px 2px;
-  margin: 0 4px;
-  background: var(--bg);
+  padding: 6px 8px 8px;
 }
 
-/* interior PressDepth 按键:外壳只做占位,尺寸由 face(32)+depth(3)决定;
-   hover/按压反馈全部交给按键物理效果(face 滑落到底座),不再叠加平面按钮样式 */
-.sidebar .footer button {
-  display: inline-flex;
-  width: auto;
-  height: auto;
+.sidebar .foot-btn {
+  width: 32px;
+  height: 32px;
+  display: grid;
+  place-items: center;
+  margin: 0;
+  padding: 0;
   border: none;
+  border-radius: 9px;
   background: transparent;
   color: var(--mut);
   cursor: pointer;
+  transition: background-color var(--dur-quick) ease, color var(--dur-quick) ease;
+}
+
+.sidebar .foot-btn:hover {
+  background: color-mix(in srgb, var(--ink) 7%, transparent);
+  color: var(--ink);
+}
+
+.sidebar .foot-btn.on {
+  color: var(--ink);
 }
 
 /* --- SettingsDrawer(interior Drawer) --- */
@@ -1815,14 +1825,6 @@ div.search-palette .palette-field input {
 .confirm-modal button:has(> .press-red) > span[aria-hidden],
 .editor-pane .banner button:has(> .press-red) > span[aria-hidden] {
   background: color-mix(in srgb, var(--acc) 74%, var(--ink));
-}
-
-/* --- PressDepth 尺寸/品牌变体(前缀选择器提高优先级,盖过 interior 默认 h-9 等) ---
-   图标键保持原版标准比例:面 36(h-9 自带)、圆角 9(自带)、depth 4(组件默认),
-   只覆盖成图标正方形(去掉 px-3.5 水平内边距) */
-.sidebar .footer .press-icon {
-  width: 36px;
-  padding: 0;
 }
 
 .confirm-modal .press-sm,

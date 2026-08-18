@@ -11,7 +11,7 @@ import { modKey } from "../lib/utils/platform";
 import { useT, revealFolderLabel, trashLabel, trashConfirm } from "../lib/i18n";
 import { useStoreVersion } from "../lib/react/reactive";
 import { useSkeletonSwap } from "./interior/skeleton-swap";
-import { PressDepth } from "./interior/press-depth";
+import { usePressDepth } from "./interior/press-depth";
 import { TreeView } from "./interior/tree-view";
 import { ContextMenu, type ContextMenuItem } from "./interior/context-menu";
 import { useNewItems, NewItemsPill } from "./interior/new-items-pill";
@@ -34,6 +34,36 @@ import { WindowDragRegion } from "../lib/window/fill";
 const SB_W = 218;
 const DISCLOSE = { type: "spring", stiffness: 480, damping: 40, mass: 0.6 } as const;
 const CARET = { type: "spring", stiffness: 700, damping: 46, mass: 0.5 } as const;
+const PRESS = { type: "spring", stiffness: 520, damping: 34, mass: 0.45 } as const;
+
+/** 底栏图标按钮:只借 PressDepth 的按压缩放,不要它的立体高光/底座。 */
+function FootButton({
+  ariaLabel,
+  pressed: on,
+  onClick,
+  children,
+}: {
+  ariaLabel: string;
+  pressed?: boolean;
+  onClick: () => void;
+  children: ReactNode;
+}) {
+  const { pressed, ref, bind } = usePressDepth({});
+  return (
+    <motion.button
+      ref={ref}
+      {...bind}
+      type="button"
+      className={on ? "foot-btn on" : "foot-btn"}
+      aria-label={ariaLabel}
+      aria-pressed={on}
+      onClick={onClick}
+      animate={{ scale: pressed ? 0.86 : 1 }}
+      transition={PRESS}>
+      {children}
+    </motion.button>
+  );
+}
 
 async function trashFile(path: string): Promise<void> {
   if (!treeStore.canRename(path)) return;
@@ -371,28 +401,18 @@ export function Sidebar() {
         <RecentDock ctxPath={ctxPath} fileItems={recentFileCtx} />
 
         <div className="footer">
-          <PressDepth className="press-icon" depth={4} aria-label={t("newDocument")} onClick={() => void tabStore.newTab()}>
+          <FootButton ariaLabel={t("newDocument")} onClick={() => void tabStore.newTab()}>
             <MovingIcon icon={PlusIcon} size={15} fill />
-          </PressDepth>
-          <PressDepth
-            className="press-icon"
-            depth={4}
-            aria-label={t("addWorkspace")}
-            onClick={() => void treeStore.addWorkspace()}>
+          </FootButton>
+          <FootButton ariaLabel={t("addWorkspace")} onClick={() => void treeStore.addWorkspace()}>
             <MovingIcon icon={FolderOpenIcon} size={15} fill />
-          </PressDepth>
-          <PressDepth
-            className="press-icon"
-            depth={4}
-            aria-label={t("settings")}
-            onClick={() => (tabStore.settingsOpen = true)}>
+          </FootButton>
+          <FootButton ariaLabel={t("settings")} onClick={() => (tabStore.settingsOpen = true)}>
             <MovingIcon icon={SlidersHorizontalIcon} size={15} fill />
-          </PressDepth>
-          <PressDepth
-            className="press-icon"
-            depth={4}
-            aria-label={settingsStore.settings.theme === "coconut-dark" ? t("lightMode") : t("darkMode")}
-            aria-pressed={settingsStore.settings.theme === "coconut-dark"}
+          </FootButton>
+          <FootButton
+            ariaLabel={settingsStore.settings.theme === "coconut-dark" ? t("lightMode") : t("darkMode")}
+            pressed={settingsStore.settings.theme === "coconut-dark"}
             onClick={() =>
               settingsStore.update(
                 "theme",
@@ -404,7 +424,7 @@ export function Sidebar() {
               size={15}
               fill
             />
-          </PressDepth>
+          </FootButton>
         </div>
       </div>
     </aside>
