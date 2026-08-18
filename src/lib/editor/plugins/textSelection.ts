@@ -1,42 +1,86 @@
 /**
- * 自绘选区:关掉 WebKit 原生 ::selection,改用 inline decoration 只盖文字。
- *
- * WKWebView 选跨块内容时,会把标题/段落后的换行涂到行尾,拖出一条粉底。
- * CSS(width:fit-content 等)压不住这条线;decoration 只包 inline 文本,不会。
+ * 自绘选区:原生 ::selection 在 WKWebView 里盖不掉,再叠 decoration 就是两层。
+ * 做法:把编辑器里的系统选区画成页面底色(看不见),再用绝对定位方块只盖字形。
  */
 import { $prose } from "@milkdown/kit/utils";
-import type { EditorState } from "@milkdown/kit/prose/state";
 import { NodeSelection, Plugin, PluginKey } from "@milkdown/kit/prose/state";
-import { Decoration, DecorationSet } from "@milkdown/kit/prose/view";
+import type { EditorView } from "@milkdown/kit/prose/view";
 
 const key = new PluginKey("COCONUT_TEXT_SEL");
 
-function selectionDecorations(state: EditorState): DecorationSet {
-  const { selection, doc } = state;
-  if (selection.empty) return DecorationSet.empty;
-  if (selection instanceof NodeSelection) return DecorationSet.empty;
+function collectRects(view: EditorView): DOMRect[] {
+  const { selection, doc } = view.state;
+  if (selection.empty || selection instanceof NodeSelection) return [];
   const { from, to } = selection;
-  if (from >= to) return DecorationSet.empty;
+  if (from >= to) return [];
 
-  const decos: Decoration[] = [];
+  const out: DOMRect[] = [];
   doc.nodesBetween(from, to, (node, pos) => {
     if (!node.isTextblock) return true;
     const start = Math.max(from, pos + 1);
     const end = Math.min(to, pos + node.nodeSize - 1);
-    if (start < end) {
-      decos.push(Decoration.inline(start, end, { class: "coconut-sel" }));
+    if (start >= end) return false;
+    try {
+      const a = view.domAtPos(start);
+      const b = view.domAtPos(end);
+      const range = document.createRange();
+      range.setStart(a.node, a.offset);
+      range.setEnd(b.node, b.offset);
+      for (const r of range.getClientRects()) {
+        if (r.width < 1 || r.height < 4) continue;
+        out.push(r);
+      }
+    } catch {
+      /* 选区落在 atom / 尚未挂上的节点时 coords 会抛 */
     }
     return false;
   });
-  return decos.length ? DecorationSet.create(doc, decos) : DecorationSet.empty;
+  return out;
+}
+
+function paint(layer: HTMLElement, view: EditorView): void {
+  const origin = layer.getBoundingClientRect();
+  const rects = collectRects(view);
+  const html = rects
+    .map((r) => {
+      const left = (r.left - origin.left).toFixed(2);
+      const top = (r.top - origin.top).toFixed(2);
+      const width = r.width.toFixed(2);
+      const height = r.height.toFixed(2);
+      return `<i class="coconut-sel-rect" style="left:${left}px;top:${top}px;width:${width}px;height:${height}px"></i>`;
+    })
+    .join("");
+  if (layer.innerHTML !== html) layer.innerHTML = html;
 }
 
 export const textSelectionHighlight = $prose(
   () =>
     new Plugin({
       key,
-      props: {
-        decorations: (state) => selectionDecorations(state),
+      view: (view) => {
+        const host = view.dom.parentElement ?? view.dom;
+        host.classList.add("coconut-sel-host");
+        const layer = document.createElement("div");
+        layer.className = "coconut-sel-layer";
+        layer.setAttribute("aria-hidden", "true");
+        host.appendChild(layer);
+
+        let raf = 0;
+        const redraw = () => {
+          cancelAnimationFrame(raf);
+          raf = requestAnimationFrame(() => paint(layer, view));
+        };
+        redraw();
+        window.addEventListener("resize", redraw);
+        return {
+          update: redraw,
+          destroy: () => {
+            cancelAnimationFrame(raf);
+            window.removeEventListener("resize", redraw);
+            layer.remove();
+            host.classList.remove("coconut-sel-host");
+          },
+        };
       },
     }),
 );

@@ -50,7 +50,14 @@
   min-width: 0;
 }
 
+.crepe.coconut-sel-host {
+  position: relative;
+}
+
 .crepe .ProseMirror {
+  /* 全局 ::selection 用 --acc-soft;改成页面底,系统选区(含行尾浅粉)看不见 */
+  --acc-soft: #fcfbfb;
+  --crepe-color-selected: #fcfbfb;
   width: 100%;
   max-width: min(var(--editor-measure, 1080px), 100%);
   margin: 0 auto;
@@ -880,10 +887,26 @@
   text-decoration: underline;
 }
 
-/* ===== 选区:只留字上的红,整块浅粉拿掉 =====
-   1. 编辑器根是 .crepe,不是 .milkdown,用错祖先时会落到全局
-      `::selection { acc-soft }`,就是那层铺满的浅粉;
-   2. WKWebView 的 ::selection 常常不解析 var(),必须写死颜色。 */
+/* ===== 选区:系统选区改成底色,可见的红只来自 .coconut-sel-rect ===== */
+:root[data-theme="coconut-dark"] .crepe .ProseMirror {
+  --acc-soft: #242220;
+  --crepe-color-selected: #242220;
+}
+
+.crepe .ProseMirror blockquote,
+.crepe .ProseMirror pre,
+.crepe .ProseMirror .milkdown-code-block {
+  --acc-soft: #efedec;
+  --crepe-color-selected: #efedec;
+}
+
+:root[data-theme="coconut-dark"] .crepe .ProseMirror blockquote,
+:root[data-theme="coconut-dark"] .crepe .ProseMirror pre,
+:root[data-theme="coconut-dark"] .crepe .ProseMirror .milkdown-code-block {
+  --acc-soft: #2e2b29;
+  --crepe-color-selected: #2e2b29;
+}
+
 .crepe .ProseMirror .ProseMirror-selectednode:not(img),
 .milkdown .ProseMirror .ProseMirror-selectednode:not(img) {
   background: none !important;
@@ -896,62 +919,26 @@
   outline: 2px solid var(--acc);
 }
 
-.editor-pane ::selection,
-.editor-pane *::selection,
-.crepe .ProseMirror::selection,
-.crepe .ProseMirror ::selection,
-.crepe .ProseMirror *::selection {
-  background-color: #fcfbfb !important;
-  color: inherit !important;
+.coconut-sel-layer {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 1;
+  overflow: hidden;
 }
 
-:root[data-theme="coconut-dark"] .editor-pane ::selection,
-:root[data-theme="coconut-dark"] .editor-pane *::selection,
-:root[data-theme="coconut-dark"] .crepe .ProseMirror::selection,
-:root[data-theme="coconut-dark"] .crepe .ProseMirror ::selection,
-:root[data-theme="coconut-dark"] .crepe .ProseMirror *::selection {
-  background-color: #242220 !important;
-  color: inherit !important;
-}
-
-.crepe .ProseMirror blockquote::selection,
-.crepe .ProseMirror blockquote *::selection,
-.crepe .ProseMirror pre::selection,
-.crepe .ProseMirror pre *::selection {
-  background-color: #efedec !important;
-  color: inherit !important;
-}
-
-:root[data-theme="coconut-dark"] .crepe .ProseMirror blockquote::selection,
-:root[data-theme="coconut-dark"] .crepe .ProseMirror blockquote *::selection,
-:root[data-theme="coconut-dark"] .crepe .ProseMirror pre::selection,
-:root[data-theme="coconut-dark"] .crepe .ProseMirror pre *::selection {
-  background-color: #2e2b29 !important;
-  color: inherit !important;
-}
-
-.crepe .ProseMirror .coconut-sel {
-  background-color: rgba(236, 48, 19, 0.18);
+.coconut-sel-rect {
+  position: absolute;
+  display: block;
+  margin: 0;
+  padding: 0;
   border-radius: 2px;
-  box-decoration-break: clone;
-  -webkit-box-decoration-break: clone;
-}
-
-.editor-pane .coconut-sel::selection,
-.editor-pane .coconut-sel *::selection,
-.crepe .ProseMirror .coconut-sel::selection,
-.crepe .ProseMirror .coconut-sel *::selection,
-.crepe .ProseMirror blockquote .coconut-sel::selection,
-.crepe .ProseMirror blockquote .coconut-sel *::selection,
-.crepe .ProseMirror pre .coconut-sel::selection,
-.crepe .ProseMirror pre .coconut-sel *::selection {
-  background-color: rgba(236, 48, 19, 0.18) !important;
-  color: inherit !important;
+  background: rgba(236, 48, 19, 0.18);
 }
 
 .milkdown .milkdown-table-block .selectedCell::after {
-  background-color: var(--crepe-color-selected);
-  opacity: 0.5;
+  background-color: rgba(236, 48, 19, 0.18);
+  opacity: 1;
 }
 
 /* ===== ==高亮==(==x== → <mark class="hl">) ===== */
