@@ -3,7 +3,24 @@
   "private": true,
   "version": "0.2.0",
   "type": "module",
-  "description": "本地优先 Markdown 阅读/编辑器(Tauri 2 + React 19 + Milkdown Crepe)",
+  "description": "Local-first WYSIWYG Markdown editor. Your files stay on disk.",
+  "license": "GPL-3.0-or-later",
+  "homepage": "https://github.com/xigua222/Coconut",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/xigua222/Coconut.git"
+  },
+  "bugs": {
+    "url": "https://github.com/xigua222/Coconut/issues"
+  },
+  "keywords": [
+    "markdown",
+    "editor",
+    "wysiwyg",
+    "local-first",
+    "tauri",
+    "react"
+  ],
   "scripts": {
     "dev": "vite",
     "build": "vite build",

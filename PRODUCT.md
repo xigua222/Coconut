@@ -60,8 +60,8 @@ coconut 是一个本地优先的 Markdown 阅读/编辑器，让"打开一个 .m
 ## Brand Commitments
 
 - 产品名 **coconut**，现有图标 `app-icon.png`（已生成全套平台图标）。
-- MIT 许可证，开源。
-- 技术栈承诺：Tauri 2 + Svelte 5 + Milkdown Crepe v7（v8 发布后可升级，mermaid 插件届时恢复）。
+- GPL-3.0-or-later: derivatives must be open source.
+- Stack: Tauri 2 + React 19 + Milkdown Crepe v7 (upgrade when v8 ships; mermaid plugin can return then).
 
 ## Evidence on Hand
 

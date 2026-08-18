@@ -1,8 +1,11 @@
 [package]
 name = "coconut"
 version = "0.2.0"
-description = "本地优先 Markdown 阅读/编辑器"
+description = "Local-first WYSIWYG Markdown editor. Your files stay on disk."
 edition = "2021"
+license = "GPL-3.0-or-later"
+repository = "https://github.com/xigua222/Coconut"
+homepage = "https://github.com/xigua222/Coconut"
 
 [lib]
 name = "coconut_lib"

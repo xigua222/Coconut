@@ -29,9 +29,9 @@ const PRINT_STYLE = `
 
 function buildPrintHtml(body: string): string {
   return `<!doctype html>
-<html lang="zh-CN"><head><meta charset="utf-8">
+<html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>coconut 导出</title><style>${PRINT_STYLE}</style>
+<title>coconut export</title><style>${PRINT_STYLE}</style>
 </head><body>${body}</body></html>`;
 }
 

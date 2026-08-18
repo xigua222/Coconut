@@ -2,10 +2,10 @@ import { isMac, isWindows } from "../utils/platform";
 import { en, zh, type Catalog } from "./messages";
 
 export type Locale = "zh" | "en";
-export const DEFAULT_LOCALE: Locale = "zh";
+export const DEFAULT_LOCALE: Locale = "en";
 
 export function asLocale(value: unknown): Locale {
-  return value === "en" ? "en" : DEFAULT_LOCALE;
+  return value === "zh" || value === "en" ? value : DEFAULT_LOCALE;
 }
 
 let current: Locale = DEFAULT_LOCALE;
@@ -22,7 +22,7 @@ export function getLocale(): Locale {
 }
 
 export function catalog(): Catalog {
-  return current === "en" ? en : zh;
+  return current === "zh" ? zh : en;
 }
 
 type StringKey = { [K in keyof Catalog]: Catalog[K] extends string ? K : never }[keyof Catalog];
