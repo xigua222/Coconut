@@ -651,11 +651,7 @@
   line-height: 1.28;
   margin: 1.2em 0 0.32em;
   scroll-margin-top: 12px;
-  /* 块级标题默认撑满行宽,WebKit 选区会把标题文字后面的空白涂到右边缘;
-     盒子收成内容宽,选区就只包文字。 */
   position: relative;
-  width: fit-content;
-  max-width: 100%;
 }
 
 .crepe .ProseMirror h1 {
@@ -714,7 +710,7 @@
 :root[data-heading-marks="on"] .crepe .ProseMirror h5,
 :root[data-heading-marks="on"] .crepe .ProseMirror h6 {
   /* 给右侧 H1–H6 标记留空,避免绝对定位标被内容区裁掉 */
-  max-width: calc(100% - 2.75em);
+  padding-right: 2.75em;
 }
 
 :root[data-heading-marks="on"] .crepe .ProseMirror h1::after,
@@ -883,7 +879,9 @@
   text-decoration: underline;
 }
 
-/* ===== 选区:只高亮文字,不要把块级 padding / 段末空行涂成粉底条 ===== */
+/* ===== 选区:关掉原生 ::selection,改用 .coconut-sel 只盖文字 =====
+   WKWebView 选跨块时会把标题后的换行涂到行尾,拖一条粉底;透明掉原生选区后
+   由 textSelection 插件画 decoration,不会铺到右边缘。 */
 .milkdown .ProseMirror .ProseMirror-selectednode,
 .milkdown .ProseMirror li.ProseMirror-selectednode,
 .milkdown .ProseMirror blockquote.ProseMirror-selectednode {
@@ -896,26 +894,21 @@
   outline: 2px solid var(--acc);
 }
 
+.milkdown .ProseMirror::selection,
 .milkdown .ProseMirror ::selection,
-.milkdown .ProseMirror ::-moz-selection {
-  background: var(--crepe-color-selected);
+.milkdown .ProseMirror *::selection,
+.milkdown .ProseMirror::-moz-selection,
+.milkdown .ProseMirror ::-moz-selection,
+.milkdown .ProseMirror *::-moz-selection {
+  background: transparent !important;
   color: inherit;
 }
 
-/* Crepe 在 selectednode 内清掉 ::selection,靠块粉底表示选中。
-   块粉底已去掉,这里保持内部透明,避免引用块/列表底部空行被涂成一条粉底。 */
-.milkdown .ProseMirror .ProseMirror-selectednode::selection,
-.milkdown .ProseMirror .ProseMirror-selectednode *::selection,
-.milkdown .ProseMirror .ProseMirror-selectednode::-moz-selection,
-.milkdown .ProseMirror .ProseMirror-selectednode *::-moz-selection {
-  background: transparent !important;
-}
-
-.milkdown .ProseMirror br::selection,
-.milkdown .ProseMirror br::-moz-selection,
-.milkdown .ProseMirror span[data-type="hardbreak"]::selection,
-.milkdown .ProseMirror span[data-type="hardbreak"]::-moz-selection {
-  background: transparent !important;
+.crepe .ProseMirror .coconut-sel {
+  background: var(--crepe-color-selected);
+  border-radius: 2px;
+  box-decoration-break: clone;
+  -webkit-box-decoration-break: clone;
 }
 
 .milkdown .milkdown-table-block .selectedCell::after {

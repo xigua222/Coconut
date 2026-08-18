@@ -22,6 +22,7 @@ import { highlightMark, remarkHighlight } from "./plugins/highlight";
 import { taskToggleKeymap, taskClickToggle } from "./plugins/taskToggle";
 import { createFindFeature, type FindController } from "./plugins/findPlugin";
 import { richCopyPlugin } from "./plugins/richCopy";
+import { textSelectionHighlight } from "./plugins/textSelection";
 import { t } from "../i18n/runtime";
 
 /**
@@ -188,7 +189,8 @@ export async function createEditor(opts: CreateEditorOpts): Promise<EditorHandle
       .use(taskClickToggle)
       .use(ensureFocus)
       .use(findFeature.plugin)
-      .use(richCopyPlugin);
+      .use(richCopyPlugin)
+      .use(textSelectionHighlight);
   });
 
   // Crepe 默认配置带 @codemirror/language-data;CrepeBuilder 不会合并
