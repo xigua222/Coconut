@@ -16,6 +16,8 @@ import {
 } from "react";
 import { createPortal } from "react-dom";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
+import { XIcon } from "lucide-animated";
+import { MovingIcon } from "../MovingIcon";
 
 const EASE = [0.23, 1, 0.32, 1] as const;
 
@@ -278,28 +280,7 @@ export function useModal({
   };
 }
 
-const CLOSE_ICON = (
-  <svg width="14" height="14" viewBox="0 0 256 256" fill="none" aria-hidden="true">
-    <line
-      x1="200"
-      y1="56"
-      x2="56"
-      y2="200"
-      stroke="currentColor"
-      strokeWidth="16"
-      strokeLinecap="round"
-    />
-    <line
-      x1="200"
-      y1="200"
-      x2="56"
-      y2="56"
-      stroke="currentColor"
-      strokeWidth="16"
-      strokeLinecap="round"
-    />
-  </svg>
-);
+const CLOSE_ICON = <MovingIcon icon={XIcon} size={14} fill />;
 
 export type ModalProps = {
   open: boolean;

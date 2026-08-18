@@ -4,6 +4,10 @@ export const isMac = typeof navigator !== "undefined" && /Mac|iPhone|iPad/.test(
 export const isWindows = typeof navigator !== "undefined" && /Win/.test(navigator.userAgent);
 export const isLinux = !isMac && !isWindows;
 
+if (typeof document !== "undefined" && isMac) {
+  document.documentElement.classList.add("mac");
+}
+
 /** 修饰键显示名:macOS 显示 ⌘,其余显示 Ctrl */
 export const modKey = isMac ? "⌘" : "Ctrl";
 

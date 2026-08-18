@@ -15,6 +15,8 @@ import {
   useReducedMotion,
   useTransform,
 } from "motion/react";
+import { XIcon } from "lucide-animated";
+import { MovingIcon } from "../MovingIcon";
 
 const DISCLOSE = {
   type: "spring",
@@ -66,6 +68,12 @@ export function useDrawer({
 
   const rootRef = useRef<HTMLDivElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
+  /** 面板经 portal 异步挂载:就绪标志让 inert/焦点副作用在面板出现后重跑 */
+  const [panelReady, setPanelReady] = useState(false);
+  const setPanelRef = useCallback((node: HTMLDivElement | null) => {
+    panelRef.current = node;
+    setPanelReady(node != null);
+  }, []);
   const returnTo = useRef<HTMLElement | null>(null);
   const anim = useRef<{ stop: () => void } | null>(null);
   const live = useRef(open);
@@ -107,7 +115,7 @@ export function useDrawer({
     return () => {
       panel.inert = false;
     };
-  }, [open]);
+  }, [open, panelReady]);
 
   useEffect(() => {
     if (open) {
@@ -122,7 +130,7 @@ export function useDrawer({
     const target = returnTo.current;
     returnTo.current = null;
     if (target && target.isConnected) target.focus({ preventScroll: true });
-  }, [open]);
+  }, [open, panelReady]);
 
   useEffect(() => {
     if (!modal || !open) return;
@@ -156,7 +164,7 @@ export function useDrawer({
     return () => {
       for (const el of muted) el.inert = false;
     };
-  }, [modal, open]);
+  }, [modal, open, panelReady]);
 
   const onKeyDown = useCallback(
     (event: React.KeyboardEvent) => {
@@ -245,35 +253,13 @@ export function useDrawer({
     close,
     rootRef,
     panelRef,
+    setPanelRef,
     panelProps,
     gripProps: { onPointerDown: startDrag },
   };
 }
 
 export type UseDrawerResult = ReturnType<typeof useDrawer>;
-
-const CLOSE_ICON = (
-  <svg width="13" height="13" viewBox="0 0 256 256" fill="none" aria-hidden="true">
-    <line
-      x1="200"
-      y1="56"
-      x2="56"
-      y2="200"
-      stroke="currentColor"
-      strokeWidth="16"
-      strokeLinecap="round"
-    />
-    <line
-      x1="200"
-      y1="200"
-      x2="56"
-      y2="56"
-      stroke="currentColor"
-      strokeWidth="16"
-      strokeLinecap="round"
-    />
-  </svg>
-);
 
 export type DrawerProps = {
   open: boolean;
@@ -336,16 +322,18 @@ export function Drawer({
         aria-hidden
         style={{ opacity: drawer.veil }}
         onClick={dismissOnScrimClick ? drawer.close : undefined}
-        className="absolute inset-0 bg-stone-900/25 dark:bg-black/55"
+        className={`absolute inset-0 bg-stone-900/25 dark:bg-black/55 ${
+          open ? "" : "pointer-events-none"
+        }`}
       />
       <motion.div
-        ref={drawer.panelRef}
+        ref={drawer.setPanelRef}
         aria-labelledby={titleId}
         aria-describedby={hintId}
         style={{ x: drawer.x, width, maxWidth: "calc(100% - 40px)", touchAction: "pan-y" }}
         className={`absolute inset-y-0 flex flex-col border-stone-200 bg-white shadow-[0_28px_56px_-24px_rgba(24,22,20,0.45)] outline-none dark:border-white/[0.16] dark:bg-[#1D1D1A] ${edge} ${
           drawer.dragging ? "select-none" : ""
-        } ${className}`}
+        } ${open ? "pointer-events-auto" : "pointer-events-none"} ${className}`}
         {...drawer.panelProps}
       >
         <header
@@ -374,7 +362,7 @@ export function Drawer({
             aria-label={closeLabel}
             className="-mr-1 grid size-7 shrink-0 place-items-center rounded-[7px] text-stone-400 outline-none transition-colors duration-150 hover:bg-stone-100 hover:text-stone-700 focus-visible:bg-[#4568FF]/[0.06] focus-visible:text-stone-700 focus-visible:shadow-[inset_0_0_0_1px_#4568FF] dark:text-stone-500 dark:hover:bg-white/10 dark:hover:text-stone-100 dark:focus-visible:bg-[#93B0FF]/[0.1] dark:focus-visible:text-stone-100 dark:focus-visible:shadow-[inset_0_0_0_1px_#93B0FF]"
           >
-            {CLOSE_ICON}
+            <MovingIcon icon={XIcon} size={13} fill />
           </button>
         </header>
         <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 py-3">

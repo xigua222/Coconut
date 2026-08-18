@@ -1,6 +1,7 @@
 pub mod directory;
 pub mod export;
 pub mod file_io;
+pub mod search;
 
 use crate::{app_menu, open_router};
 
@@ -8,6 +9,10 @@ use crate::{app_menu, open_router};
 #[tauri::command]
 pub fn frontend_ready(app: tauri::AppHandle) {
     open_router::flush(&app);
+    #[cfg(target_os = "macos")]
+    if let Some(win) = tauri::Manager::get_webview_window(&app, "main") {
+        crate::macos::layout_traffic_lights(&win);
+    }
 }
 
 /// 最近文件变化时由前端调用:重建"打开最近"子菜单

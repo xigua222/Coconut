@@ -1,44 +1,36 @@
 /**
- * 设置抽屉(interior Drawer:弹簧滑入、头部拖拽关闭、焦点圈禁)。
- * 分段控件用 interior SegmentedControl(滑块弹簧 + 键盘方向键)。
+ * 设置抽屉:外观、语言、编辑偏好、导出。
  */
 import { Drawer } from "./interior/drawer";
 import { SegmentedControl } from "./interior/segmented-control";
+import { LoadingButton } from "./interior/loading-button";
 import { Switch } from "./interior/switch";
-import { usePressDepth } from "./interior/press-depth";
 import { settingsStore } from "../lib/settings/settingsStore";
 import type { MeasureLevel, SizeLevel } from "../lib/settings/defaults";
 import { exportCurrentHtml } from "../lib/files/export";
 import { tabStore } from "../lib/tabs/tabStore";
 import { useStoreVersion } from "../lib/react/reactive";
-import { motion } from "motion/react";
+import { useT, type Locale } from "../lib/i18n";
 
 export function SettingsDrawer() {
   useStoreVersion(tabStore);
-  useStoreVersion(settingsStore);
+  const t = useT();
   const { settings } = settingsStore;
   const open = tabStore.settingsOpen;
-  // 导出按钮是整宽块,用 hook 做按压缩放(不做 3D 卡片)
-  const exportPress = usePressDepth({});
 
   async function exportCurrent() {
     const session = tabStore.activeTab?.session;
-    if (!session) return;
-    try {
-      await exportCurrentHtml(session);
-    } catch (e) {
-      console.error("export failed", e);
-    }
+    if (!session) throw new Error(t("noOpenDocument"));
+    await exportCurrentHtml(session);
   }
 
   return (
     <Drawer
       open={open}
       onOpenChange={(next) => (tabStore.settingsOpen = next)}
-      title="设置"
-      description="coconut 0.2.0"
-      width={296}
-      closeLabel="关闭设置"
+      title={t("settings")}
+      width={320}
+      closeLabel={t("closeSettings")}
       className="settings-drawer"
       footer={
         <span className="drawer-version">
@@ -47,69 +39,95 @@ export function SettingsDrawer() {
         </span>
       }>
       <div className="drawer-group">
-        <span className="drawer-group-label">正文字体</span>
+        <span className="drawer-group-label">{t("appearance")}</span>
         <SegmentedControl
-          label="正文字体"
+          label={t("appearance")}
           className="w-full"
-          value={settings.serif ? "serif" : "sans"}
-          onValueChange={(v) => settingsStore.update("serif", v === "serif")}
+          value={settings.theme === "coconut-dark" ? "dark" : "light"}
+          onValueChange={(v) =>
+            settingsStore.update("theme", v === "dark" ? "coconut-dark" : "coconut")
+          }
           options={[
-            { value: "sans", label: "无衬线" },
-            { value: "serif", label: "衬线" },
+            { value: "light", label: t("light") },
+            { value: "dark", label: t("dark") },
           ]}
         />
       </div>
 
       <div className="drawer-group">
-        <span className="drawer-group-label">字号</span>
+        <span className="drawer-group-label">{t("language")}</span>
         <SegmentedControl
-          label="字号"
+          label={t("language")}
+          className="w-full"
+          value={settings.locale}
+          onValueChange={(v) => settingsStore.update("locale", v as Locale)}
+          options={[
+            { value: "zh", label: t("langZh") },
+            { value: "en", label: t("langEn") },
+          ]}
+        />
+      </div>
+
+      <div className="drawer-group">
+        <span className="drawer-group-label">{t("editor")}</span>
+        <span className="drawer-field-label">{t("fontSize")}</span>
+        <SegmentedControl
+          label={t("fontSize")}
           className="w-full"
           value={settings.sizeLevel}
           onValueChange={(v) => settingsStore.update("sizeLevel", v as SizeLevel)}
           options={[
-            { value: "s", label: "小" },
-            { value: "m", label: "标准" },
-            { value: "l", label: "大" },
+            { value: "s", label: t("sizeS") },
+            { value: "m", label: t("sizeM") },
+            { value: "l", label: t("sizeL") },
           ]}
         />
-      </div>
-
-      <div className="drawer-group">
-        <span className="drawer-group-label">行宽</span>
+        <span className="drawer-field-label">{t("measure")}</span>
         <SegmentedControl
-          label="行宽"
+          label={t("measure")}
           className="w-full"
           value={settings.measureLevel}
           onValueChange={(v) => settingsStore.update("measureLevel", v as MeasureLevel)}
           options={[
-            { value: "n", label: "窄" },
-            { value: "m", label: "适中" },
-            { value: "w", label: "宽" },
+            { value: "n", label: t("measureN") },
+            { value: "m", label: t("measureM") },
+            { value: "w", label: t("measureW") },
           ]}
         />
+        <div className="drawer-row">
+          <div className="drawer-row-text">
+            <span className="drawer-row-title">{t("autoSave")}</span>
+            <span className="drawer-row-hint">{t("autoSaveHint")}</span>
+          </div>
+          <Switch
+            label={t("autoSave")}
+            checked={settings.autoSave}
+            onCheckedChange={(v) => settingsStore.update("autoSave", v)}
+          />
+        </div>
+        <div className="drawer-row">
+          <div className="drawer-row-text">
+            <span className="drawer-row-title">{t("headingMarks")}</span>
+            <span className="drawer-row-hint">{t("headingMarksHint")}</span>
+          </div>
+          <Switch
+            label={t("headingMarks")}
+            checked={settings.headingMarks}
+            onCheckedChange={(v) => settingsStore.update("headingMarks", v)}
+          />
+        </div>
       </div>
 
       <div className="drawer-group">
-        <span className="drawer-group-label">显示大纲</span>
-        <Switch
-          label="显示大纲"
-          checked={settings.outlineVisible}
-          onCheckedChange={(v) => settingsStore.update("outlineVisible", v)}
-        />
-      </div>
-
-      <div className="drawer-group">
-        <span className="drawer-group-label">导出</span>
-        <motion.button
-          ref={exportPress.ref}
-          {...exportPress.bind}
-          className="export-btn"
-          onClick={() => void exportCurrent()}
-          animate={{ scale: exportPress.pressed ? 0.97 : 1 }}
-          transition={{ type: "spring", stiffness: 520, damping: 34, mass: 0.45 }}>
-          导出当前为 HTML…
-        </motion.button>
+        <span className="drawer-group-label">{t("export")}</span>
+        <LoadingButton
+          className="export-btn w-full"
+          onAction={exportCurrent}
+          pendingLabel={t("exporting")}
+          successLabel={t("exported")}
+          errorLabel={t("exportFailed")}>
+          {t("exportHtml")}
+        </LoadingButton>
       </div>
     </Drawer>
   );

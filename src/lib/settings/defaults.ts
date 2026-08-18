@@ -1,72 +1,75 @@
 /** 设置 schema 单一来源。 */
 
-/**
- * 产品主题:单一固定主题(暖灰浅色 + 品牌红),不做多主题。
- * settings.theme 字段保留兼容旧数据,但只接受 "coconut"。
- */
-export type Theme = "coconut";
+import { DEFAULT_LOCALE, type Locale } from "../i18n/runtime";
 
-export const FIXED_THEME: Theme = "coconut";
+/**
+ * 产品主题:coconut 暖灰浅色 / coconut-dark 暖灰深色,共用品牌红。
+ * 旧数据里其它 theme 值一律归并为浅色。
+ */
+export type Theme = "coconut" | "coconut-dark";
+
+export const DEFAULT_THEME: Theme = "coconut";
+export const FIXED_THEME: Theme = DEFAULT_THEME;
+
+export type { Locale };
+export { DEFAULT_LOCALE };
 
 export type SizeLevel = "s" | "m" | "l";
 export type MeasureLevel = "n" | "m" | "w";
 
 export interface Settings {
-  /** 主题(固定为单一主题,保留字段兼容旧数据) */
+  /** 外观:coconut 浅色 / coconut-dark 深色 */
   theme: Theme;
-  /** 文件列表面板的根目录(选择目录后持久化) */
-  folderRoot: string | null;
+  /** 界面语言 */
+  locale: Locale;
+  /** 默认工作区(始终有一个;首次启动会落到「文档/coconut」) */
+  defaultWorkspace: string | null;
+  /** 用户额外添加的工作区(不含默认) */
+  workspaces: string[];
+  /** 打开过、且不在任何工作区内的 Markdown(侧栏「近期访问」) */
+  recentAccess: string[];
   /** 自动保存(输入后 1.5s 防抖) */
   autoSave: boolean;
   /** 编辑器字号 px */
   fontSize: number;
-  /** 编辑器字体栈 */
-  fontFamily: string;
-  /** 正文衬线字体 */
-  serif: boolean;
   /** 字号档:小/标准/大 */
   sizeLevel: SizeLevel;
   /** 行宽档:窄/适中/宽 */
   measureLevel: MeasureLevel;
   /** 大纲(目录)面板可见 */
   outlineVisible: boolean;
+  /** 左侧文库侧栏可见 */
+  sidebarVisible: boolean;
   /** 不再提示 roundtrip 有损警告 */
   hideRoundtripNotice: boolean;
+  /** 在标题后显示 H1–H6 层级标记 */
+  headingMarks: boolean;
+  /** 上次退出时打开着的文档(按标签顺序),下次启动重开 */
+  openTabs: string[];
+  /** 上次退出时的活动文档路径 */
+  activeTab: string | null;
 }
 
 export const DEFAULT_SETTINGS: Settings = {
-  theme: FIXED_THEME,
-  folderRoot: null,
+  theme: DEFAULT_THEME,
+  locale: DEFAULT_LOCALE,
+  defaultWorkspace: null,
+  workspaces: [],
+  recentAccess: [],
   autoSave: true,
   fontSize: 16,
-  fontFamily:
-    '-apple-system, BlinkMacSystemFont, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Segoe UI", sans-serif',
-  serif: false,
   sizeLevel: "m",
   measureLevel: "m",
   outlineVisible: true,
-  hideRoundtripNotice: false,
+  sidebarVisible: true,
+  hideRoundtripNotice: true,
+  headingMarks: true,
+  openTabs: [],
+  activeTab: null,
 };
 
 /** 字号档 → px */
 export const SIZE_LEVEL_PX: Record<SizeLevel, number> = { s: 15.5, m: 16.5, l: 18 };
 
-/** 行宽档 → 内容最大宽度 */
-export const MEASURE_LEVEL_PX: Record<MeasureLevel, number> = { n: 600, m: 700, w: 820 };
-
-/** 设置面板可选字体 */
-export const FONT_OPTIONS: { label: string; value: string }[] = [
-  {
-    label: "系统默认",
-    value:
-      '-apple-system, BlinkMacSystemFont, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Segoe UI", sans-serif',
-  },
-  {
-    label: "衬线(阅读)",
-    value: 'Georgia, "Songti SC", "SimSun", "Noto Serif SC", serif',
-  },
-  {
-    label: "等宽(代码)",
-    value: '"SF Mono", "JetBrains Mono", Menlo, Consolas, "Courier New", monospace',
-  },
-];
+/** 行宽档 → 内容最大宽度(含左右内边距) */
+export const MEASURE_LEVEL_PX: Record<MeasureLevel, number> = { n: 840, m: 1080, w: 1360 };

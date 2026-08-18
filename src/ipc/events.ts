@@ -4,6 +4,7 @@
 import { listen } from "@tauri-apps/api/event";
 import { tabStore } from "../lib/tabs/tabStore";
 import { settingsStore } from "../lib/settings/settingsStore";
+import { treeStore } from "../lib/files/treeStore";
 import { openInVscode, showInFolder } from "./commands";
 import { exportCurrentHtml, exportCurrentPdf } from "../lib/files/export";
 
@@ -25,10 +26,13 @@ function dispatchMenu(action: string): void {
   const session = tabStore.activeTab?.session ?? null;
   switch (action) {
     case "new":
-      tabStore.newTab();
+      void tabStore.newTab();
       break;
     case "open":
       void tabStore.openFiles();
+      break;
+    case "open-folder":
+      void treeStore.addWorkspace();
       break;
     case "save":
       void tabStore.saveActive();
@@ -38,6 +42,24 @@ function dispatchMenu(action: string): void {
       break;
     case "close-tab":
       if (tabStore.activeId) void tabStore.close(tabStore.activeId);
+      break;
+    case "prev-tab":
+      tabStore.activateRelative(-1);
+      break;
+    case "next-tab":
+      tabStore.activateRelative(1);
+      break;
+    case "close-other-tabs":
+      if (tabStore.activeId) void tabStore.closeOthers(tabStore.activeId);
+      break;
+    case "close-tabs-right":
+      if (tabStore.activeId) void tabStore.closeToRight(tabStore.activeId);
+      break;
+    case "close-all-tabs":
+      void tabStore.closeAll();
+      break;
+    case "toggle-sidebar":
+      settingsStore.update("sidebarVisible", !settingsStore.settings.sidebarVisible);
       break;
     case "toggle-outline":
       settingsStore.update("outlineVisible", !settingsStore.settings.outlineVisible);
@@ -96,7 +118,7 @@ export async function registerAll(): Promise<void> {
  * undo 栈一致);在 textarea 等原生控件时回退到系统命令。
  */
 function runEditorCommand(cmd: "undo" | "redo" | "select-all"): void {
-  const editor = tabStore.activeTab?.session.editor;
+  const editor = tabStore.activeTab?.session?.editor;
   const inEditor = document.activeElement?.closest?.(".ProseMirror") != null;
   if (editor && inEditor) {
     if (cmd === "undo") editor.undo();

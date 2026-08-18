@@ -4,6 +4,8 @@ import "./components/interior/interior.css";
 import { createRoot } from "react-dom/client";
 import { App } from "./App";
 import { settingsStore } from "./lib/settings/settingsStore";
+import { treeStore } from "./lib/files/treeStore";
+import { tabStore } from "./lib/tabs/tabStore";
 import { registerAll } from "./ipc/events";
 import { frontendReady } from "./ipc/commands";
 
@@ -12,7 +14,8 @@ import { frontendReady } from "./ipc/commands";
  * 1. 读设置(tauri-plugin-store)
  * 2. 注册 Rust → 前端事件监听(await 完成,确保 IPC 注册先于握手)
  * 3. 挂载 App
- * 4. 通知 Rust "前端就绪",Rust 收到后才 flush 启动时携带的文件路径,
+ * 4. 恢复上次打开的标签
+ * 5. 通知 Rust "前端就绪",Rust 收到后才 flush 启动时携带的文件路径,
  *    解决"事件在监听器注册前发出而丢失"的经典竞态。
  */
 async function bootstrap() {
@@ -22,10 +25,22 @@ async function bootstrap() {
     // 设置损坏不阻塞启动,回落默认值
     console.error("settings init failed", e);
   }
+  try {
+    await treeStore.bootstrap();
+  } catch (e) {
+    console.error("workspace bootstrap failed", e);
+  }
   // 关键:必须先等 listen 的 IPC 注册完成,再发 frontend_ready,
   // 否则 Rust 端 emit 的 open-file 可能先于监听器到达而丢失
   await registerAll();
   createRoot(document.getElementById("app")!).render(<App />);
+  try {
+    // 恢复上次的标签必须早于 frontend_ready:这样命令行/双击带进来的
+    // 文件仍然是最后打开、也是当前激活的那个
+    await tabStore.restoreSession();
+  } catch (e) {
+    console.error("session restore failed", e);
+  }
   try {
     await frontendReady();
   } catch (e) {

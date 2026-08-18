@@ -8,6 +8,12 @@ importers:
 
   .:
     dependencies:
+      '@codemirror/language-data':
+        specifier: ^6.5.2
+        version: 6.5.2
+      '@codemirror/view':
+        specifier: 6.43.8
+        version: 6.43.8
       '@milkdown/crepe':
         specifier: ^7.22.0
         version: 7.22.0(prosemirror-model@1.25.11)(prosemirror-state@1.4.4)(prosemirror-view@1.42.2)(typescript@5.9.3)
@@ -29,6 +35,12 @@ importers:
       '@tauri-apps/plugin-store':
         specifier: ^2.2.0
         version: 2.4.4
+      lottie-react:
+        specifier: ^2.4.1
+        version: 2.4.1(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
+      lucide-animated:
+        specifier: ^1.0.5
+        version: 1.0.5(motion@13.1.0(react-dom@19.2.8(react@19.2.8))(react@19.2.8))(react@19.2.8)
       motion:
         specifier: ^13.1.0
         version: 13.1.0(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
@@ -1000,8 +1012,23 @@ packages:
   longest-streak@3.1.0:
     resolution: {integrity: sha512-9Ri+o0JYgehTaVBBDoMqIl8GXtbWg711O3srftcHhZ0dqnETqLaoIK0x17fUw9rFSlK/0NlsKe0Ahhyl5pXE2g==}
 
+  lottie-react@2.4.1:
+    resolution: {integrity: sha512-LQrH7jlkigIIv++wIyrOYFLHSKQpEY4zehPicL9bQsrt1rnoKRYCYgpCUe5maqylNtacy58/sQDZTkwMcTRxZw==}
+    peerDependencies:
+      react: ^16.8.0 || ^17.0.0 || ^18.0.0 || ^19.0.0
+      react-dom: ^16.8.0 || ^17.0.0 || ^18.0.0 || ^19.0.0
+
+  lottie-web@5.13.0:
+    resolution: {integrity: sha512-+gfBXl6sxXMPe8tKQm7qzLnUy5DUPJPKIyRHwtpCpyUEYjHYRJC/5gjUvdkuO2c3JllrPtHXH5UJJK8LRYl5yQ==}
+
   lru-cache@5.1.1:
     resolution: {integrity: sha512-KpNARQA3Iwv+jTA0utUVVbrh+Jlrr1Fv0e56GGzAFOXN7dk/FviaDW8LHmK52DlcH4WP2n6gI8vN1aesBFgo9w==}
+
+  lucide-animated@1.0.5:
+    resolution: {integrity: sha512-bNRQvgrZZ/rZTug5YET+qNvJLtVHGamEYQ0vCI/GWveBZTTKQAAIQc0M8U2MUJBYR1+kXtjzFhpZL7oOqnD2CA==}
+    peerDependencies:
+      motion: '>=11.0.0'
+      react: '>=18.0.0'
 
   magic-string@0.30.21:
     resolution: {integrity: sha512-vd2F4YUyEXKGcLHoq+TEyCjxueSeHnFxyyjNp80yg0XV4vUhnDer/lvvlqM/arB5bXQN5K2/3oinyCRyx8T2CQ==}
@@ -2661,9 +2688,22 @@ snapshots:
 
   longest-streak@3.1.0: {}
 
+  lottie-react@2.4.1(react-dom@19.2.8(react@19.2.8))(react@19.2.8):
+    dependencies:
+      lottie-web: 5.13.0
+      react: 19.2.8
+      react-dom: 19.2.8(react@19.2.8)
+
+  lottie-web@5.13.0: {}
+
   lru-cache@5.1.1:
     dependencies:
       yallist: 3.1.1
+
+  lucide-animated@1.0.5(motion@13.1.0(react-dom@19.2.8(react@19.2.8))(react@19.2.8))(react@19.2.8):
+    dependencies:
+      motion: 13.1.0(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
+      react: 19.2.8
 
   magic-string@0.30.21:
     dependencies:

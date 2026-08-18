@@ -8,7 +8,7 @@ const SAMPLE_MD = `# 测试文档
 
 ## 章节一
 
-这是一段**加粗**和*斜体*文字,还有 \`行内代码\`。
+这是一段**加粗**和*斜体*文字,还有 \`行内代码\`。海南试点已落地。
 
 - 列表项 1
 - 列表项 2
@@ -50,7 +50,7 @@ function transformCallback(cb: (payload: unknown) => void): number {
 /** mock store 的数据 */
 const storeData = new Map<string, Record<string, unknown>>();
 storeData.set("settings.json", {});
-storeData.set("recent.json", { recent: ["/mock/文档一.md", "/mock/文档二.md"] });
+storeData.set("recent.json", { recent: ["/mock/coconut/文档一.md", "/mock/outside/火车上.md"] });
 
 let storeCounter = 0;
 /** rid → 文件名映射:客户端 load 拿到 rid 后,get/set 只传 rid+key */
@@ -78,8 +78,85 @@ const storePaths = new Map<number, string>();
       // ---- 自定义 command ----
       case "read_document":
         return { content: SAMPLE_MD, encoding: "UTF-8", mtime: Date.now() };
+      case "search_sync": {
+        const payload = (args.payload as Record<string, unknown>) ?? args;
+        const live = (payload.liveDocs as Array<Record<string, string>>) ?? [];
+        const extra = (payload.extraFiles as Array<{ path: string; kind: string }>) ?? [];
+        const merged = new Map<string, Record<string, string>>();
+        const keyOf = (path: string, id: string) => (path || id).replace(/\\/g, "/").replace(/\/+$/, "");
+        for (const f of extra) {
+          const id = keyOf(f.path, f.path);
+          if (!id || merged.has(id)) continue;
+          merged.set(id, {
+            id,
+            title: f.path.split("/").pop() ?? f.path,
+            path: f.path,
+            body: f.path.includes("文档一") ? `${SAMPLE_MD}\n\n海南自贸港落地试点。` : SAMPLE_MD,
+            kind: "recent",
+          });
+        }
+        for (const d of live) {
+          const id = keyOf(d.path ?? "", d.id ?? "");
+          if (!id) continue;
+          merged.set(id, { ...d, id, kind: "open" });
+        }
+        const rank = (kind: string) => (kind === "open" ? 0 : kind === "recent" ? 1 : 2);
+        (window as any).__mockSearch = [...merged.values()].sort(
+          (a, b) => rank(a.kind) - rank(b.kind) || String(a.title).localeCompare(String(b.title)),
+        );
+        return undefined;
+      }
+      case "search_query": {
+        const q = String(args.query ?? "").trim().toLowerCase();
+        if (!q) return [];
+        const docs = ((window as any).__mockSearch as Array<Record<string, string>>) ?? [];
+        const rank = (kind: string) => (kind === "open" ? 0 : kind === "recent" ? 1 : 2);
+        const seen = new Set<string>();
+        return docs
+          .filter(
+            (d) =>
+              (d.title ?? "").toLowerCase().includes(q) ||
+              (d.path ?? "").toLowerCase().includes(q) ||
+              (d.body ?? "").toLowerCase().includes(q),
+          )
+          .map((d) => {
+            const body = (d.body ?? "").replace(/\s+/g, " ");
+            const at = body.toLowerCase().indexOf(q);
+            const snippet =
+              at < 0
+                ? body.slice(0, 88)
+                : `${at > 0 ? "…" : ""}${body.slice(Math.max(0, at - 24), at + q.length + 48).trim()}${
+                    at + q.length + 48 < body.length ? "…" : ""
+                  }`;
+            return { id: d.id, title: d.title, path: d.path, kind: d.kind, snippet, score: 1 };
+          })
+          .filter((d) => {
+            const key = (d.path || d.id).replace(/\\/g, "/").replace(/\/+$/, "");
+            if (seen.has(key)) return false;
+            seen.add(key);
+            return true;
+          })
+          .sort((a, b) => rank(a.kind) - rank(b.kind) || String(a.title).localeCompare(String(b.title)));
+      }
       case "write_document":
         return { mtime: Date.now() };
+      case "rename_path": {
+        const from = String(args.from ?? "");
+        const name = String(args.toName ?? "");
+        const i = Math.max(from.lastIndexOf("/"), from.lastIndexOf("\\"));
+        return i >= 0 ? `${from.slice(0, i)}/${name}` : name;
+      }
+      case "trash_path":
+        return undefined;
+      case "stat_files": {
+        const paths = (args.paths as string[]) ?? [];
+        const now = Date.now();
+        return paths.map((path, i) => ({
+          path,
+          size: 1200 + i * 640,
+          mtime: now - i * 3600_000,
+        }));
+      }
       case "export_html":
         return `<h1>导出</h1><p>${String(args.content ?? "").slice(0, 50)}</p>`;
       case "export_pdf":
@@ -88,8 +165,9 @@ const storePaths = new Map<number, string>();
         return undefined;
       case "sync_recent_menu":
         return undefined;
+      case "ensure_default_workspace":
+        return "/mock/coconut";
       case "scan_directory": {
-        // 浏览器模式无真实 fs:返回固定样例树
         const root = String(args.path ?? "");
         return [
           { name: "文档一.md", path: `${root}/文档一.md`, is_dir: false, depth: 0 },
@@ -127,8 +205,7 @@ const storePaths = new Map<number, string>();
       }
 
       // ---- window 插件 ----
-      case "plugin:window|set_title":
-        document.title = String(args.title ?? "coconut");
+      case "plugin:window|set_theme":
         return undefined;
       case "plugin:window|on_close_requested":
         return undefined;

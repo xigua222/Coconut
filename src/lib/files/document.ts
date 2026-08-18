@@ -8,6 +8,7 @@ import { markDone, markWriting } from "./agentActivity";
 import { settingsStore } from "../settings/settingsStore";
 import { basename } from "../utils/platform";
 import { debounce } from "../utils/debounce";
+import { t } from "../i18n/runtime";
 import { ReactiveStore } from "../react/reactive";
 
 /**
@@ -18,7 +19,7 @@ import { ReactiveStore } from "../react/reactive";
  */
 export class DocumentSession extends ReactiveStore {
   path: string | null = null;
-  title = "未命名";
+  title = t("untitled");
   /** 最新内容(编辑器防抖后回写,供大纲/状态栏派生) */
   md = "";
   /** 编辑模式:wysiwyg=所见即所得(Crepe);source=源码(textarea) */
@@ -41,6 +42,8 @@ export class DocumentSession extends ReactiveStore {
   #watchPaused = false;
   /** 编辑器挂载完成后才允许置脏(拦截创建期的初始回显事件) */
   #userInputEnabled = false;
+  /** 上次成功写盘/读盘的内容,用来判断是否真有未保存差异 */
+  #savedMd = "";
   #autosave = debounce(() => void this.#saveInternal(true), 1500);
 
   /** 从磁盘打开已存在的文件 */
@@ -52,7 +55,13 @@ export class DocumentSession extends ReactiveStore {
     return session;
   }
 
-  /** 新建未命名空文档 */
+  /** 在默认工作区新建空文档并立刻落盘 */
+  static async create(path: string): Promise<DocumentSession> {
+    await writeDocument(path, "", null);
+    return DocumentSession.open(path);
+  }
+
+  /** 新建未命名空文档(无工作区时的回退) */
   static unnamed(): DocumentSession {
     return new DocumentSession();
   }
@@ -106,15 +115,14 @@ export class DocumentSession extends ReactiveStore {
    */
   toggleMode(): void {
     if (this.mode === "wysiwyg") {
+      // getMarkdown 空串时不能覆盖磁盘原文,否则切源码只剩一行
       const editorMd = this.#editor?.getMarkdown();
-      if (editorMd != null) {
-        this.md = editorMd;
-        this.sourceText = editorMd;
-      } else {
-        this.sourceText = this.md;
-      }
+      const next = editorMd || this.md;
+      this.md = next;
+      this.sourceText = next;
       this.mode = "source";
     } else {
+      this.md = this.sourceText || this.md;
       this.mode = "wysiwyg";
     }
     this.notify();
@@ -133,9 +141,21 @@ export class DocumentSession extends ReactiveStore {
     this.notify();
   }
 
-  /** 真实输入事件 → 脏标记 + 调度自动保存 */
+  /** 真实输入事件 → 脏标记 + 调度自动保存。
+   *  序列化结果与已保存内容归一化后相同则不算脏(空文档 trailing 换行、
+   *  打完又改回去),避免关标签时对「其实没改」弹确认。 */
   markUserInput(): void {
     if (!this.#userInputEnabled) return;
+    const current =
+      this.mode === "source" ? this.sourceText : (this.#editor?.getMarkdown() ?? this.md);
+    if (sameAfterNormalize(current, this.#savedMd)) {
+      if (this.dirty) {
+        this.dirty = false;
+        this.#autosave.cancel();
+        this.notify();
+      }
+      return;
+    }
     this.dirty = true;
     if (settingsStore.settings.autoSave) this.#autosave();
     this.notify();
@@ -156,8 +176,10 @@ export class DocumentSession extends ReactiveStore {
 
   /** 另存为 */
   async saveAs(): Promise<void> {
-    const base = this.title === "未命名" ? "未命名" : this.title.replace(/\.(md|markdown|mdown|mkd|mdx)$/i, "");
-    const picked = await pickSavePath(`${base}.md`);
+    const base = !this.path
+      ? t("untitled")
+      : this.title.replace(/\.(md|markdown|mdown|mkd|mdx)$/i, "");
+    const picked = await pickSavePath(`${base}.md`, settingsStore.settings.defaultWorkspace);
     if (!picked) return;
     await this.#saveInternal(false, true, picked);
   }
@@ -215,6 +237,7 @@ export class DocumentSession extends ReactiveStore {
       this.encoding = "UTF-8";
       this.dirty = false;
       this.conflict = false;
+      this.#savedMd = content;
       if (saveAs) {
         this.#startWatch();
         void pushRecent(path);
@@ -241,6 +264,8 @@ export class DocumentSession extends ReactiveStore {
     if (!this.path) return;
     const res = await readDocument(this.path);
     this.md = res.content;
+    this.sourceText = res.content;
+    this.#savedMd = res.content;
     this.encoding = res.encoding;
     this.#savedMtime = res.mtime;
     this.title = basename(this.path);
@@ -266,6 +291,7 @@ export class DocumentSession extends ReactiveStore {
       if (!this.dirty) {
         // 无未保存修改 → 静默重新加载
         this.md = res.content;
+        this.#savedMd = res.content;
         this.#savedMtime = res.mtime;
         this.encoding = res.encoding;
         if (this.mode === "source") this.sourceText = res.content;
@@ -283,6 +309,15 @@ export class DocumentSession extends ReactiveStore {
       // 文件被删除等极端情况,忽略
       markDone();
     }
+  }
+
+  /** 磁盘上的文件被改名后,跟着换路径并重挂监视 */
+  retarget(path: string): void {
+    if (this.path === path) return;
+    this.path = path;
+    this.title = basename(path);
+    this.#startWatch();
+    this.notify();
   }
 
   /** 关闭 tab 时释放 watcher 等资源 */

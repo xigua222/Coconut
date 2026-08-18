@@ -1,19 +1,37 @@
-/* ===== coconut 主题 token(暖灰底 + 品牌红 + 圆角体系),单一固定主题 ===== */
+/* ===== coconut 主题 token(暖灰底 + 品牌红 + 圆角体系) ===== */
 :root,
 :root[data-theme="coconut"] {
+  color-scheme: light;
   --bg: #f3f2f2;
   --panel: #fcfbfb;
   --soft: #efedec;
   --ink: #201e1d;
   --mut: #8b8683;
-  --line: color-mix(in srgb, #201e1d 10%, transparent);
-  --line2: color-mix(in srgb, #201e1d 30%, transparent);
+  --line: color-mix(in srgb, var(--ink) 10%, transparent);
+  --line2: color-mix(in srgb, var(--ink) 30%, transparent);
   --acc: #ec3013;
-  --acc-soft: color-mix(in srgb, #ec3013 10%, transparent);
+  --acc-soft: color-mix(in srgb, var(--acc) 10%, transparent);
   --hl: #ffe9ad;
   --shadow-sm: 0 1px 2px rgba(32, 30, 29, 0.08);
   --shadow-md: 0 6px 24px rgba(32, 30, 29, 0.12);
   --shadow-lg: 0 18px 50px rgba(32, 30, 29, 0.18);
+}
+
+:root[data-theme="coconut-dark"] {
+  color-scheme: dark;
+  --bg: #1a1817;
+  --panel: #242220;
+  --soft: #2e2b29;
+  --ink: #f3efec;
+  --mut: #9a948f;
+  --line: color-mix(in srgb, var(--ink) 12%, transparent);
+  --line2: color-mix(in srgb, var(--ink) 28%, transparent);
+  --acc: #ec3013;
+  --acc-soft: color-mix(in srgb, var(--acc) 22%, transparent);
+  --hl: #5c4a1f;
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
+  --shadow-md: 0 6px 24px rgba(0, 0, 0, 0.48);
+  --shadow-lg: 0 18px 50px rgba(0, 0, 0, 0.58);
 }
 
 :root {
@@ -21,12 +39,31 @@
   --r-card: 12px;
   --r-item: 10px;
 
+  /* 字体:全局仅两族 —— UI/正文统一无衬线系统栈,代码等宽;
+     不加载任何网络字体(本地优先,包体即身份) */
+  --font-sans: -apple-system, BlinkMacSystemFont, "PingFang SC", "Hiragino Sans GB",
+    "Microsoft YaHei", "Segoe UI", sans-serif;
+  --font-mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+
   /* 动效:统一出弹曲线,时长三档;spring 用于开关旋钮等微交互 */
   --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
   --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
   --dur-quick: 250ms;
   --dur-move: 380ms;
   --dur-theme: 450ms;
+  --z-tooltip: 45;
+
+  /* 窗口四周留白;macOS 红绿灯叠在侧栏顶部,与主面板顶栏同一行 */
+  --app-pad: 16px;
+  --topbar-h: 38px;
+  --titlebar-h: 0px;
+  --lights-w: 0px;
+}
+
+html.mac {
+  /* 与 .topbar 同高,搜索从顶栏下一行开始;宽度留给收起侧栏时的顶栏左垫 */
+  --titlebar-h: var(--topbar-h);
+  --lights-w: 78px;
 }
 
 /* ===== 基础 ===== */
@@ -42,17 +79,35 @@ body {
 }
 
 body {
-  font-family: "Archivo", -apple-system, "Noto Sans SC", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei",
-    sans-serif;
+  font-family: var(--font-sans);
   font-size: 14px;
   color: var(--ink);
   background: var(--bg);
   -webkit-font-smoothing: antialiased;
-  user-select: none;
+  /* 不要写在 body 上:WKWebView 会拦截 contenteditable 里的点击/光标 */
+  transition: background-color var(--dur-theme) ease, color var(--dur-theme) ease;
 }
 
 #app {
   height: 100%;
+  cursor: default;
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-user-drag: none;
+}
+
+input,
+textarea,
+[contenteditable="true"],
+.ProseMirror,
+.ProseMirror *,
+.source-pane textarea,
+.cm-editor,
+.cm-content,
+.cm-line {
+  -webkit-user-select: text;
+  user-select: text;
+  cursor: text;
 }
 
 button {
@@ -105,14 +160,36 @@ button {
   height: 100%;
   box-sizing: border-box;
   display: flex;
-  padding: 16px;
-  gap: 0;
+  flex-direction: column;
   background: var(--bg);
   color: var(--ink);
   transition: background-color var(--dur-theme) ease;
 }
 
+.app-shell {
+  flex: 1;
+  min-height: 0;
+  min-width: 0;
+  display: flex;
+  padding: 0 var(--app-pad) var(--app-pad);
+}
+
+/* 收起侧栏后主面板顶到窗口左边,红绿灯不再压在卡片圆角上 */
+html.mac .app.sidebar-collapsed .app-shell {
+  padding-left: 0;
+}
+
+html.mac .app.sidebar-collapsed .main-panel {
+  border-top-left-radius: 0;
+  border-bottom-left-radius: 0;
+}
+
+html.mac .app.sidebar-collapsed .topbar .leading {
+  padding-left: calc(var(--lights-w) + 6px);
+}
+
 .main-panel {
+  position: relative;
   flex: 1;
   min-width: 0;
   display: flex;
@@ -125,10 +202,20 @@ button {
   transition: background-color var(--dur-theme) ease;
 }
 
+.agent-live {
+  position: absolute;
+  top: var(--topbar-h);
+  left: 0;
+  right: 0;
+  z-index: 46;
+  pointer-events: none;
+}
+
 .main-body {
   flex: 1;
   display: flex;
   min-height: 0;
+  min-width: 0;
 }
 
 /* ===== 滚动条 ===== */

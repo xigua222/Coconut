@@ -1,6 +1,7 @@
 use std::path::Path;
 
 use serde::Serialize;
+use tauri::{AppHandle, Manager};
 
 /// 目录树扫描:递归列出目录与 Markdown 文件(供左侧"文件列表面板")。
 /// 与 read_document 同模式 —— std::fs 直读,不依赖 fs 插件 scope。
@@ -71,6 +72,23 @@ fn walk(dir: &Path, depth: usize, out: &mut Vec<DirEntry>) -> Result<(), String>
         }
     }
     Ok(())
+}
+
+pub(crate) fn markdown_files_under(root: &Path) -> Vec<String> {
+    let mut entries = Vec::new();
+    if walk(root, 0, &mut entries).is_err() {
+        return Vec::new();
+    }
+    entries.into_iter().filter(|e| !e.is_dir).map(|e| e.path).collect()
+}
+
+/// 确保默认工作区存在:「文档/coconut」。首次启动或设置被清空时调用。
+#[tauri::command]
+pub fn ensure_default_workspace(app: AppHandle) -> Result<String, String> {
+    let docs = app.path().document_dir().map_err(|e| format!("无法定位文档目录: {e}"))?;
+    let dir = docs.join("coconut");
+    std::fs::create_dir_all(&dir).map_err(|e| format!("无法创建默认工作区: {e}"))?;
+    Ok(dir.to_string_lossy().into_owned())
 }
 
 /// scan_directory:返回扁平目录树(带 depth),前端按 depth 缩进渲染。

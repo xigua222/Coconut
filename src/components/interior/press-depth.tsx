@@ -151,6 +151,7 @@ export type PressDepthProps = {
   onClick?: React.MouseEventHandler<HTMLButtonElement>;
   className?: string;
   "aria-label"?: string;
+  "aria-pressed"?: boolean;
 };
 
 export function PressDepth({
@@ -162,6 +163,7 @@ export function PressDepth({
   onClick,
   className = "",
   "aria-label": ariaLabel,
+  "aria-pressed": ariaPressed,
 }: PressDepthProps) {
   const reduced = useReducedMotion();
   const { pressed, origin, ref, bind } = usePressDepth({ disabled });
@@ -174,6 +176,7 @@ export function PressDepth({
       type={type}
       disabled={disabled}
       aria-label={ariaLabel}
+      aria-pressed={ariaPressed}
       data-pressed={pressed ? "" : undefined}
       onClick={onClick}
       style={{

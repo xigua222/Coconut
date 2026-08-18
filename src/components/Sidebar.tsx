@@ -1,58 +1,271 @@
 /**
- * 左侧文库侧栏:搜索(⌘K)、文档列表、底部新建/主题/设置。
- * 宽度 0↔218 动画;tab 增删带 slide-in/退场动画(motion 重写 svelte fly/fade/flip)。
+ * 左侧侧栏:搜索、可折叠工作区、底部钉住的近期访问。
  */
-import { useEffect } from "react";
-import { AnimatePresence, motion } from "motion/react";
-import type { Tab } from "../lib/tabs/types";
+import { useEffect, useRef, useState, type MutableRefObject, type ReactNode } from "react";
+import { LayoutGroup, motion, useReducedMotion } from "motion/react";
 import { tabStore } from "../lib/tabs/tabStore";
-import { treeStore } from "../lib/files/treeStore";
+import { treeStore, type WorkspaceSection } from "../lib/files/treeStore";
+import { folderName, samePath } from "../lib/files/paths";
 import { settingsStore } from "../lib/settings/settingsStore";
 import { modKey } from "../lib/utils/platform";
+import { useT, revealFolderLabel, trashLabel, trashConfirm } from "../lib/i18n";
 import { useStoreVersion } from "../lib/react/reactive";
 import { useSkeletonSwap } from "./interior/skeleton-swap";
 import { PressDepth } from "./interior/press-depth";
+import { TreeView } from "./interior/tree-view";
+import { ContextMenu, type ContextMenuItem } from "./interior/context-menu";
+import { useNewItems, NewItemsPill } from "./interior/new-items-pill";
+import { useAutoHeight } from "./interior/accordion";
+import { openInVscode, showInFolder } from "../ipc/commands";
+import { confirmDanger } from "../ipc/dialogs";
+import {
+  ChevronRightIcon,
+  FolderOpenIcon,
+  MoonIcon,
+  PlusIcon,
+  SearchIcon,
+  SlidersHorizontalIcon,
+  SunIcon,
+  XIcon,
+} from "lucide-animated";
+import { MovingIcon } from "./MovingIcon";
+import { WindowDragRegion } from "../lib/window/fill";
 
 const SB_W = 218;
-/** 与全局 --ease-out 一致的出弹曲线 */
-const EASE_OUT: [number, number, number, number] = [0.22, 1, 0.36, 1];
+const DISCLOSE = { type: "spring", stiffness: 480, damping: 40, mass: 0.6 } as const;
+const CARET = { type: "spring", stiffness: 700, damping: 46, mass: 0.5 } as const;
 
-/**
- * 单个 tab 行:订阅自己的 session(dirty/title 变化独立于 tabStore 通知,
- * 不能让 Sidebar 订阅所有 session —— hooks 数量会随 tab 数变化)。
- */
-function TabRow({ tab }: { tab: Tab }) {
-  useStoreVersion(tab.session);
-  const { title, dirty, path } = tab.session;
+async function trashFile(path: string): Promise<void> {
+  if (!treeStore.canRename(path)) return;
+  const ok = await confirmDanger(trashConfirm(folderName(path)), trashLabel());
+  if (ok) await treeStore.trash(path);
+}
+
+function collectIds(nodes: WorkspaceSection["nodes"], into = new Set<string>()): Set<string> {
+  for (const n of nodes) {
+    into.add(n.id);
+    if (n.children) collectIds(n.children, into);
+  }
+  return into;
+}
+
+function SectionCaret({ open }: { open: boolean }) {
+  const reduced = useReducedMotion();
+  return (
+    <motion.span
+      aria-hidden
+      className="vault-caret"
+      initial={false}
+      animate={{ rotate: open ? 90 : 0 }}
+      transition={reduced ? { duration: 0 } : CARET}>
+      <MovingIcon icon={ChevronRightIcon} size={11} />
+    </motion.span>
+  );
+}
+
+function Fold({ open, children }: { open: boolean; children: ReactNode }) {
+  const reduced = useReducedMotion();
+  const { ref, height, ready } = useAutoHeight();
+  return (
+    <motion.div
+      initial={false}
+      animate={ready ? { height: open ? height : 0 } : {}}
+      transition={reduced ? { duration: 0 } : DISCLOSE}
+      style={{ overflow: "hidden", height: ready ? undefined : open ? "auto" : 0 }}>
+      <div ref={ref} aria-hidden={open ? undefined : true}>
+        {children}
+      </div>
+    </motion.div>
+  );
+}
+
+function VaultTree({
+  section,
+  ctxPath,
+  renamingId,
+  setRenamingId,
+  fileItems,
+  headItems,
+}: {
+  section: WorkspaceSection;
+  ctxPath: MutableRefObject<string | null>;
+  renamingId: string | null;
+  setRenamingId: (id: string | null) => void;
+  fileItems: ContextMenuItem[];
+  headItems: ContextMenuItem[];
+}) {
+  const t = useT();
+  const open = treeStore.isSectionOpen(section.id);
+  const extra = section.kind === "workspace";
+
+  function onHeadSelect(id: string) {
+    if (id === "add") void treeStore.addWorkspace();
+    else if (id === "change-default") void treeStore.changeDefaultWorkspace();
+    else if (id === "refresh") void treeStore.refresh();
+    else if (id === "reveal" && section.root) void showInFolder(section.root);
+    else if (id === "forget" && section.root) treeStore.removeWorkspace(section.root);
+  }
+
+  function onFileSelect(id: string) {
+    const path = ctxPath.current;
+    if (!path) return;
+    if (id === "open" && treeStore.isFile(path)) treeStore.openFile(path);
+    else if (id === "rename" && treeStore.canRename(path)) {
+      requestAnimationFrame(() => setRenamingId(path));
+    } else if (id === "reveal") void showInFolder(path);
+    else if (id === "vscode") void openInVscode(path).catch(() => {});
+    else if (id === "trash") void trashFile(path);
+    else if (id === "forget" && treeStore.isRecent(path)) treeStore.forgetFile(path);
+  }
 
   return (
-    <motion.button
-      className={tab.id === tabStore.activeId ? "doc active" : "doc"}
-      onClick={() => tabStore.activate(tab.id)}
-      title={path ?? title}
-      initial={{ opacity: 0, x: -10 }}
-      animate={{ opacity: 1, x: 0 }}
-      exit={{ opacity: 0 }}
-      transition={{ duration: 0.28, ease: EASE_OUT }}
-      layout>
-      <svg
-        width="14"
-        height="14"
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="var(--mut)"
-        strokeWidth="2"
-        strokeLinecap="round"
-        strokeLinejoin="round">
-        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-        <polyline points="14 2 14 8 20 8" />
-      </svg>
-      <span className="meta">
-        <span className="name">{title}</span>
-        <span className="sub">{dirty ? "未保存" : "已保存"}</span>
-      </span>
-      <span className={tab.id === tabStore.activeId ? "dot on" : "dot"} />
-    </motion.button>
+    <section className="vault">
+      <ContextMenu items={headItems} label={section.label} className="tree-ctx" onSelect={onHeadSelect}>
+        <div className="vault-head-row">
+          <button
+            type="button"
+            className="vault-head"
+            aria-expanded={open}
+            onClick={() => treeStore.toggleSection(section.id)}>
+            <SectionCaret open={open} />
+            <span className="vault-name">{section.label}</span>
+            {section.kind === "default" && <span className="vault-tag">{t("defaultTag")}</span>}
+          </button>
+          {extra && section.root ? (
+            <button
+              type="button"
+              className="vault-remove"
+              aria-label={t("removeWorkspace")}
+              onClick={(e) => {
+                e.stopPropagation();
+                if (section.root) treeStore.removeWorkspace(section.root);
+              }}>
+              <MovingIcon icon={XIcon} size={12} />
+            </button>
+          ) : null}
+        </div>
+      </ContextMenu>
+      <Fold open={open}>
+        <ContextMenu items={fileItems} label={t("fileActions")} className="tree-ctx" onSelect={onFileSelect}>
+          <div
+            onContextMenu={(e) => {
+              const row = (e.target as HTMLElement).closest("[data-id]");
+              ctxPath.current = row?.getAttribute("data-id") ?? null;
+            }}>
+            {section.nodes.length > 0 ? (
+              <TreeView
+                nodes={section.nodes}
+                label={section.label}
+                className="folder-tree"
+                selectionLayoutId="sidebar-file-sel"
+                expanded={[...treeStore.expanded]}
+                onExpandedChange={(ids) => {
+                  const inSection = collectIds(section.nodes);
+                  const next = new Set([...treeStore.expanded].filter((id) => !inSection.has(id)));
+                  for (const id of ids) next.add(id);
+                  treeStore.expanded = next;
+                  treeStore.notify();
+                }}
+                selected={tabStore.activeTab?.session?.path ?? null}
+                onSelectedChange={(id) => {
+                  if (treeStore.isFile(id)) treeStore.openFile(id);
+                }}
+                renamingId={renamingId}
+                onRenameRequest={(id) => {
+                  if (treeStore.canRename(id)) setRenamingId(id);
+                }}
+                onRenameCancel={() => setRenamingId(null)}
+                onRenameCommit={(id, next) => {
+                  void treeStore.rename(id, next).finally(() => setRenamingId(null));
+                }}
+              />
+            ) : (
+              <p className="empty">{t("emptyDocs")}</p>
+            )}
+          </div>
+        </ContextMenu>
+      </Fold>
+    </section>
+  );
+}
+
+const RECENT_PREVIEW = 3;
+
+/** 侧栏三条不跟 MRU 立刻换位:点已显示的项保持原序,只有新文件进列表或条目被移除时才改。 */
+function reconcileRecentPreview(shown: string[], recents: string[], limit: number): string[] {
+  const inRecents = (p: string) => recents.some((r) => samePath(r, p));
+  const inList = (list: string[], p: string) => list.some((s) => samePath(s, p));
+  const canonical = (p: string) => recents.find((r) => samePath(r, p)) ?? p;
+
+  let next = shown.filter(inRecents).map(canonical);
+  const newest = recents[0];
+  if (newest && !inList(next, newest)) next = [newest, ...next];
+  for (const p of recents) {
+    if (next.length >= limit) break;
+    if (!inList(next, p)) next.push(p);
+  }
+  return next.slice(0, limit);
+}
+
+function RecentDock({
+  ctxPath,
+  fileItems,
+}: {
+  ctxPath: MutableRefObject<string | null>;
+  fileItems: ContextMenuItem[];
+}) {
+  const t = useT();
+  const recents = treeStore.recentOpened;
+  const shownRef = useRef<string[]>([]);
+  const preview = reconcileRecentPreview(shownRef.current, recents, RECENT_PREVIEW);
+  shownRef.current = preview;
+
+  function onFileSelect(id: string) {
+    const path = ctxPath.current;
+    if (!path) return;
+    if (id === "open") treeStore.openFile(path);
+    else if (id === "reveal") void showInFolder(path);
+    else if (id === "vscode") void openInVscode(path).catch(() => {});
+    else if (id === "trash") void trashFile(path);
+    else if (id === "forget") treeStore.forgetFile(path);
+  }
+
+  return (
+    <section className="recent-dock">
+      <div className="vault-head">
+        <span className="vault-name">{t("recentOpened")}</span>
+      </div>
+      <ContextMenu items={fileItems} label={t("fileActions")} className="tree-ctx" onSelect={onFileSelect}>
+        <div
+          className="recent-list"
+          onContextMenu={(e) => {
+            const row = (e.target as HTMLElement).closest("[data-id]");
+            ctxPath.current = row?.getAttribute("data-id") ?? null;
+          }}>
+          {preview.length > 0 ? (
+            <ul className="recent-preview">
+              {preview.map((path) => (
+                <li key={path}>
+                  <button
+                    type="button"
+                    className="recent-item"
+                    data-id={path}
+                    title={path}
+                    onClick={() => treeStore.openFile(path)}>
+                    <span className="name">{folderName(path)}</span>
+                  </button>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="empty">{t("emptyRecent")}</p>
+          )}
+          <button type="button" className="recent-more" onClick={() => tabStore.openLibrary()}>
+            {t("moreRecents")}
+          </button>
+        </div>
+      </ContextMenu>
+    </section>
   );
 }
 
@@ -60,208 +273,137 @@ export function Sidebar() {
   useStoreVersion(tabStore);
   useStoreVersion(treeStore);
   useStoreVersion(settingsStore);
-  const folderRoot = settingsStore.settings.folderRoot;
+  const t = useT();
+  const workspaceKey = treeStore.workspaceRoots.join("\0");
+  const ctxPath = useRef<string | null>(null);
+  const [renamingId, setRenamingId] = useState<string | null>(null);
+  const treeItems = useNewItems<HTMLDivElement>({
+    itemCount: treeStore.fileCount,
+    anchor: "top",
+  });
 
-  /** 根目录变化 → 重新扫描(首次/更换目录) */
   useEffect(() => {
-    if (folderRoot) void treeStore.refresh();
-  }, [folderRoot]);
+    void treeStore.refresh();
+  }, [workspaceKey]);
 
-  /** 根名(最后一段路径) */
-  const rootName = treeStore.root
-    ? (treeStore.root.split(/[/\\]/).filter(Boolean).at(-1) ?? treeStore.root)
-    : "";
-
-  /** 首次加载(无数据且扫描中)显示骨架;后台 watch 重扫保持树 + 透明度提示 */
-  const firstLoad = treeStore.loading && treeStore.entries.length === 0;
+  const firstLoad = treeStore.loading && treeStore.placeTrees.length === 0 && treeStore.workspaceRoots.length > 0;
   const { showSkeleton } = useSkeletonSwap({ ready: !firstLoad });
   const SKELETON_W = [88, 95, 80, 92, 85, 70];
 
+  const revealLabel = revealFolderLabel();
+
+  const fileCtx: ContextMenuItem[] = [
+    { id: "open", label: t("open") },
+    { id: "rename", label: t("rename") },
+    { id: "reveal", label: revealLabel },
+    { type: "separator", id: "sep" },
+    { id: "vscode", label: t("openInVscode") },
+    { type: "separator", id: "sep-trash" },
+    { id: "trash", label: trashLabel(), danger: true },
+  ];
+
+  const recentFileCtx: ContextMenuItem[] = [
+    ...fileCtx,
+    { type: "separator", id: "sep2" },
+    { id: "forget", label: t("removeFromRecent") },
+  ];
+
+  const defaultHead: ContextMenuItem[] = [
+    { id: "reveal", label: revealLabel },
+    { id: "change-default", label: t("changeDefaultWorkspace") },
+    { type: "separator", id: "sep" },
+    { id: "add", label: t("addWorkspaceEllipsis") },
+    { id: "refresh", label: t("rescan") },
+  ];
+
+  const extraHead: ContextMenuItem[] = [
+    { id: "reveal", label: revealLabel },
+    { id: "forget", label: t("removeWorkspace") },
+    { type: "separator", id: "sep" },
+    { id: "add", label: t("addWorkspaceEllipsis") },
+    { id: "refresh", label: t("rescan") },
+  ];
+
+  const show = settingsStore.settings.sidebarVisible;
+  const sections = treeStore.sections;
+
   return (
     <aside
-      className={tabStore.sidebarVisible ? "sidebar" : "sidebar hidden"}
-      style={{ width: tabStore.sidebarVisible ? SB_W : 0 }}
-      aria-hidden={!tabStore.sidebarVisible}>
-      <div className="inner" style={{ opacity: tabStore.sidebarVisible ? 1 : 0 }}>
-        {/* 顶部留白:与 macOS 系统交通灯(红黄绿)对齐,同时是窗口拖拽区域 */}
-        <div className="traffic-space" />
-
+      className={show ? "sidebar" : "sidebar hidden"}
+      style={{ width: show ? SB_W : 0 }}
+      aria-hidden={!show}>
+      <div className="inner" style={{ opacity: show ? 1 : 0 }}>
+        <WindowDragRegion className="sidebar-drag" />
         <button className="search" onClick={() => (tabStore.searchOpen = true)}>
-          <svg
-            width="13"
-            height="13"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2.4"
-            strokeLinecap="round">
-            <circle cx="11" cy="11" r="7" />
-            <line x1="20" y1="20" x2="16.2" y2="16.2" />
-          </svg>
-          <span className="grow">搜索</span>
+          <MovingIcon icon={SearchIcon} size={13} />
+          <span className="grow">{t("search")}</span>
           <span className="kbd">{modKey}K</span>
         </button>
 
-        <div className="section-label">文库 / RECENT</div>
-        <nav className="docs">
-          <AnimatePresence initial={false}>
-            {tabStore.tabs.map((tab) => (
-              <TabRow key={tab.id} tab={tab} />
-            ))}
-          </AnimatePresence>
-          {tabStore.tabs.length === 0 && <p className="empty">暂无文档</p>}
-        </nav>
-
-        {/* 文件列表面板:浏览所选目录的 Markdown 文件,Agent 增删自动刷新 */}
-        <div className="section-label">目录 / FOLDER</div>
-        <div className="folder-root">
-          {treeStore.root ? (
-            <>
-              <div className="root-btn" onClick={() => void treeStore.pickRoot()} title={treeStore.root}>
-                <svg
-                  width="12"
-                  height="12"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round">
-                  <path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
-                </svg>
-                <span className="grow root-name">{rootName}</span>
-                <button
-                  className="mini-btn"
-                  title="重新扫描"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    void treeStore.refresh();
-                  }}>
-                  <svg
-                    width="11"
-                    height="11"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2.4"
-                    strokeLinecap="round"
-                    strokeLinejoin="round">
-                    <polyline points="23 4 23 10 17 10" />
-                    <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10" />
-                  </svg>
-                </button>
-              </div>
-              <nav className={treeStore.loading && !showSkeleton ? "tree loading" : "tree"}>
-                {showSkeleton ? (
-                  <div className="tree-skeleton" aria-hidden>
-                    {SKELETON_W.map((w, i) => (
-                      <span key={i} style={{ width: `${w}%` }} />
-                    ))}
-                  </div>
-                ) : (
-                  treeStore.visible.map((entry) =>
-                    entry.is_dir ? (
-                      <button
-                        key={entry.path}
-                        className="tree-item dir"
-                        style={{ paddingLeft: 10 + entry.depth * 12 }}
-                        onClick={() => treeStore.toggleDir(entry.path)}
-                        title={entry.path}>
-                        <svg
-                          width="10"
-                          height="10"
-                          viewBox="0 0 24 24"
-                          fill="none"
-                          stroke="currentColor"
-                          strokeWidth="2.6"
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          className={treeStore.expanded.has(entry.path) ? "" : "folded"}>
-                          <polyline points="9 18 15 12 9 6" />
-                        </svg>
-                        <span className="grow dir-name">{entry.name}</span>
-                      </button>
-                    ) : (
-                      <button
-                        key={entry.path}
-                        className="tree-item file"
-                        style={{ paddingLeft: 10 + entry.depth * 12 }}
-                        onClick={() => treeStore.openFile(entry.path)}
-                        title={entry.path}>
-                        <svg
-                          width="12"
-                          height="12"
-                          viewBox="0 0 24 24"
-                          fill="none"
-                          stroke="currentColor"
-                          strokeWidth="2"
-                          strokeLinecap="round"
-                          strokeLinejoin="round">
-                          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-                          <polyline points="14 2 14 8 20 8" />
-                        </svg>
-                        <span className="grow file-name">{entry.name}</span>
-                      </button>
-                    ),
-                  )
-                )}
-                {treeStore.entries.length === 0 && !treeStore.loading && (
-                  <p className="empty">此目录没有 Markdown 文件</p>
-                )}
-              </nav>
-            </>
+        <div className="folder-root" {...treeItems.scrollProps}>
+          <NewItemsPill count={treeItems.unread} onJump={treeItems.jump} label={(n) => t("nNewFiles", { n })} />
+          {showSkeleton ? (
+            <div className="tree-skeleton" aria-hidden>
+              {SKELETON_W.map((w, i) => (
+                <span key={i} style={{ width: `${w}%` }} />
+              ))}
+            </div>
           ) : (
-            <button className="root-btn empty-root" onClick={() => void treeStore.pickRoot()}>
-              <svg
-                width="12"
-                height="12"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round">
-                <path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
-              </svg>
-              <span className="grow">选择目录…</span>
-            </button>
+            <LayoutGroup id="sidebar-trees">
+              <div className={treeStore.loading ? "vaults loading" : "vaults"}>
+                {sections.map((section) => (
+                  <VaultTree
+                    key={section.id}
+                    section={section}
+                    ctxPath={ctxPath}
+                    renamingId={renamingId}
+                    setRenamingId={setRenamingId}
+                    fileItems={fileCtx}
+                    headItems={section.kind === "default" ? defaultHead : extraHead}
+                  />
+                ))}
+                {treeStore.error && <p className="empty">{treeStore.error}</p>}
+              </div>
+            </LayoutGroup>
           )}
         </div>
 
-        <div className="grow" />
+        <RecentDock ctxPath={ctxPath} fileItems={recentFileCtx} />
 
         <div className="footer">
-          <PressDepth className="press-icon" depth={3} aria-label="新建文档" onClick={() => tabStore.newTab()}>
-            <svg
-              width="15"
-              height="15"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2.2"
-              strokeLinecap="round">
-              <line x1="12" y1="5" x2="12" y2="19" />
-              <line x1="5" y1="12" x2="19" y2="12" />
-            </svg>
+          <PressDepth className="press-icon" depth={4} aria-label={t("newDocument")} onClick={() => void tabStore.newTab()}>
+            <MovingIcon icon={PlusIcon} size={15} fill />
           </PressDepth>
           <PressDepth
             className="press-icon"
-            depth={3}
-            aria-label="设置"
+            depth={4}
+            aria-label={t("addWorkspace")}
+            onClick={() => void treeStore.addWorkspace()}>
+            <MovingIcon icon={FolderOpenIcon} size={15} fill />
+          </PressDepth>
+          <PressDepth
+            className="press-icon"
+            depth={4}
+            aria-label={t("settings")}
             onClick={() => (tabStore.settingsOpen = true)}>
-            <svg
-              width="15"
-              height="15"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2.1"
-              strokeLinecap="round">
-              <line x1="4" y1="7" x2="20" y2="7" />
-              <circle cx="9" cy="7" r="2.2" fill="var(--panel)" />
-              <line x1="4" y1="17" x2="20" y2="17" />
-              <circle cx="15" cy="17" r="2.2" fill="var(--panel)" />
-            </svg>
+            <MovingIcon icon={SlidersHorizontalIcon} size={15} fill />
+          </PressDepth>
+          <PressDepth
+            className="press-icon"
+            depth={4}
+            aria-label={settingsStore.settings.theme === "coconut-dark" ? t("lightMode") : t("darkMode")}
+            aria-pressed={settingsStore.settings.theme === "coconut-dark"}
+            onClick={() =>
+              settingsStore.update(
+                "theme",
+                settingsStore.settings.theme === "coconut-dark" ? "coconut" : "coconut-dark",
+              )
+            }>
+            <MovingIcon
+              icon={settingsStore.settings.theme === "coconut-dark" ? SunIcon : MoonIcon}
+              size={15}
+              fill
+            />
           </PressDepth>
         </div>
       </div>

@@ -1,71 +1,106 @@
 /**
- * 搜索浮层(⌘K):interior CommandPalette 重做 —— 模糊匹配(子序列评分)、
- * 键盘导航、滚动跟随、遮罩层与退场动画全部内置。
- * 数据源:已打开 tab(切换)+ 历史文档 recent.json(打开)。
+ * ⌘K:已打开标签 + 所有工作区与近期访问中的 Markdown,支持文件名与全文检索。
  */
 import { useEffect, useState } from "react";
 import { CommandPalette, type CommandItem } from "./interior/command-palette";
 import { tabStore } from "../lib/tabs/tabStore";
-import { list as listRecent } from "../lib/files/recent";
-import { basename } from "../lib/utils/platform";
+import { treeStore } from "../lib/files/treeStore";
+import { settingsStore } from "../lib/settings/settingsStore";
+import { searchQuery, type SearchHit } from "../ipc/commands";
+import { syncSearchIndex } from "../lib/files/search";
 import { useStoreVersion } from "../lib/react/reactive";
+import { useT, t } from "../lib/i18n";
+
+function kindHint(kind: string): string {
+  if (kind === "open") return t("hintOpen");
+  if (kind === "recent") return t("recentOpened");
+  return t("workspaces");
+}
+
+function toItems(hits: SearchHit[]): CommandItem[] {
+  return hits.map((hit) => {
+    const tabId = hit.id.startsWith("tab:") ? hit.id.slice(4) : null;
+    return {
+      id: tabId ? `tab:${tabId}` : `lib:${hit.path || hit.id}`,
+      label: hit.title || hit.path,
+      hint: kindHint(hit.kind),
+      sub: hit.snippet || undefined,
+    };
+  });
+}
 
 export function SearchOverlay() {
   useStoreVersion(tabStore);
-  const [recents, setRecents] = useState<string[]>([]);
+  useStoreVersion(treeStore);
+  const t = useT();
+  const [query, setQuery] = useState("");
+  const [items, setItems] = useState<CommandItem[]>([]);
+  const [ready, setReady] = useState(false);
   const open = tabStore.searchOpen;
 
   useEffect(() => {
-    void listRecent().then(setRecents);
-  }, []);
+    if (!open) {
+      setReady(false);
+      setItems([]);
+      return;
+    }
+    let cancelled = false;
+    void syncSearchIndex()
+      .then(() => {
+        if (!cancelled) setReady(true);
+      })
+      .catch(() => {
+        if (!cancelled) setReady(true);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [open, treeStore.fileCount, tabStore.tabs.length]);
 
-  // 面板打开时聚焦输入框(CommandPalette 的 surface 随 open 挂载,
-  // autoFocus 只在自身挂载时生效,这里显式补一次)
   useEffect(() => {
-    if (!open) return;
-    const id = requestAnimationFrame(() => {
-      document.querySelector<HTMLInputElement>('[role="combobox"]')?.focus();
-    });
-    return () => cancelAnimationFrame(id);
-  }, [open]);
-
-  const items: CommandItem[] = [
-    // 已打开的 tab 优先(选中 → 切换)
-    ...tabStore.tabs.map((tab) => ({
-      id: `tab:${tab.id}`,
-      label: tab.session.title,
-      hint: tab.session.path ?? "未命名文档",
-      keywords: tab.session.path ?? tab.session.title,
-    })),
-    // 历史文档(未打开 → 打开)
-    ...recents
-      .filter((path) => !tabStore.tabs.some((t) => t.session.path === path))
-      .map((path) => ({
-        id: `recent:${path}`,
-        label: basename(path),
-        hint: path,
-        keywords: path,
-      })),
-  ];
+    if (!open || !ready) return;
+    const q = query.trim();
+    if (!q) {
+      setItems([]);
+      return;
+    }
+    let cancelled = false;
+    const timer = window.setTimeout(() => {
+      void searchQuery(q)
+        .then((hits) => {
+          if (!cancelled) setItems(toItems(hits));
+        })
+        .catch(() => {
+          if (!cancelled) setItems([]);
+        });
+    }, 80);
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timer);
+    };
+  }, [open, ready, query, settingsStore.settings.locale]);
 
   return (
     <CommandPalette
       open={open}
+      autoFocus
+      skipFilter
+      highlightFirst={false}
+      className="search-palette"
       onDismiss={() => (tabStore.searchOpen = false)}
+      onQueryChange={setQuery}
       onSelect={(item) => {
         tabStore.searchOpen = false;
-        if (item.id.startsWith("tab:")) {
-          tabStore.activate(item.id.slice(4));
-        } else {
-          // 历史文档:hint 即完整路径
-          void tabStore.openPath(item.hint ?? item.id.slice("recent:".length));
-        }
+        if (item.id.startsWith("tab:")) tabStore.activate(item.id.slice(4));
+        else if (item.id.startsWith("lib:")) void tabStore.openPath(item.id.slice("lib:".length), { replace: true });
       }}
       items={items}
-      placeholder="搜索历史文档…"
-      emptyLabel="没有找到匹配的文档"
-      label="搜索"
-      maxRows={6}
+      placeholder={t("searchPlaceholder")}
+      emptyLabel={t("searchEmpty")}
+      idleLabel={t("searchIdle")}
+      label={t("searchDocs")}
+      maxRows={7}
+      showCount={false}
     />
   );
 }

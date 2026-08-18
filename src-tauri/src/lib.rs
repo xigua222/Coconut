@@ -1,5 +1,7 @@
 mod app_menu;
 mod commands;
+#[cfg(target_os = "macos")]
+mod macos;
 mod open_router;
 mod state;
 
@@ -26,10 +28,17 @@ pub fn run() {
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_window_state::Builder::default().build())
         .manage(state::AppState::default())
+        .manage(commands::search::SearchIndex::new().expect("tantivy index"))
         .invoke_handler(tauri::generate_handler![
             commands::file_io::read_document,
             commands::file_io::write_document,
+            commands::file_io::rename_path,
+            commands::file_io::trash_path,
+            commands::file_io::stat_files,
             commands::directory::scan_directory,
+            commands::directory::ensure_default_workspace,
+            commands::search::search_sync,
+            commands::search::search_query,
             commands::export::export_html,
             commands::export::export_pdf,
             commands::frontend_ready,
@@ -49,6 +58,22 @@ pub fn run() {
             // (如无头环境下保存了物理像素当逻辑尺寸),重置为默认,避免
             // 窗口超出屏幕导致 UI 溢出/留白。
             if let Some(win) = app.get_webview_window("main") {
+                #[cfg(target_os = "macos")]
+                {
+                    macos::layout_traffic_lights(&win);
+                    let win_ev = win.clone();
+                    win.on_window_event(move |event| {
+                        if matches!(
+                            event,
+                            tauri::WindowEvent::Resized(_)
+                                | tauri::WindowEvent::ScaleFactorChanged { .. }
+                                | tauri::WindowEvent::ThemeChanged(_)
+                                | tauri::WindowEvent::Focused(_)
+                        ) {
+                            macos::layout_traffic_lights(&win_ev);
+                        }
+                    });
+                }
                 if let Ok(Some(monitor)) = win.current_monitor() {
                     let monitor_size = monitor.size().to_logical::<f64>(monitor.scale_factor());
                     let win_size = win.outer_size().unwrap_or_default().to_logical::<f64>(win.scale_factor().unwrap_or(1.0));

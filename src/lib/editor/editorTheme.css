@@ -24,30 +24,61 @@
   --crepe-color-inline-area: var(--soft);
   --crepe-color-error: var(--acc);
   --crepe-color-hover: color-mix(in srgb, var(--ink) 5%, transparent);
-  --crepe-color-selected: var(--acc-soft);
+  /* ::selection / 表格选区遮罩用;块级 .ProseMirror-selectednode 粉底在下方单独清掉 */
+  --crepe-color-selected: color-mix(in srgb, var(--acc) 18%, transparent);
 
   --crepe-shadow-1: var(--shadow-sm);
   --crepe-shadow-2: var(--shadow-md);
 
   --crepe-base-font-size: var(--editor-font-size, 16.5px);
-  --crepe-font-default: var(--editor-font-family, sans-serif);
-  --crepe-font-title: var(--editor-font-family, sans-serif);
-  --crepe-font-code: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  --crepe-font-default: var(--font-sans);
+  --crepe-font-title: var(--font-sans);
+  --crepe-font-code: var(--font-mono);
+
+  /* 排版比例:全部相对正文,避免表格/代码/公式各用一套 px */
+  --type-code: 0.9em;
+  --type-code-block: 0.925em;
+  --type-ui-sm: 0.75em;
 }
 
 /* ===== 内容区:与主面板一体,自然流动 ===== */
+.milkdown,
+.crepe {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+}
+
 .crepe .ProseMirror {
-  max-width: var(--editor-measure, 700px);
+  width: 100%;
+  max-width: min(var(--editor-measure, 1080px), 100%);
   margin: 0 auto;
-  padding: 52px 48px 90px;
-  line-height: 1.95;
+  padding: clamp(28px, 4vw, 44px) 28px clamp(48px, 7vw, 80px);
+  box-sizing: border-box;
+  line-height: 1.62;
   color: color-mix(in srgb, var(--ink) 93%, transparent);
+  /* 中英混排时 anywhere 会让 WebView 光标坐标和字形宽度对不上 */
+  overflow-wrap: break-word;
+  word-break: normal;
+  white-space: pre-wrap;
+  /* 必须压过 body/祖先的 user-select:none,否则 WKWebView 点不进光标 */
+  user-select: text !important;
+  -webkit-user-select: text !important;
+  caret-color: var(--ink);
+  font-family: "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", -apple-system, BlinkMacSystemFont, sans-serif;
+  font-kerning: none;
+  font-variant-ligatures: none;
   transition: background-color var(--dur-theme) ease, color var(--dur-theme) ease;
 }
 
 /* 正文统一文本光标:文档始终可编辑,点击即输入 */
 .crepe .ProseMirror {
   cursor: text;
+}
+
+.crepe .ProseMirror * {
+  user-select: text;
+  -webkit-user-select: text;
 }
 
 /* ===== 浮动工具栏:紧凑 coconut 卡片(比例对齐顶栏图标按钮) ===== */
@@ -175,13 +206,39 @@
   border: 1px solid var(--line);
   border-radius: var(--r-item);
   box-shadow: var(--shadow-md);
-  padding: 6px 8px 6px 12px;
+  padding: 5px 8px 5px 12px;
   animation: rd-fade var(--dur-quick) ease;
+}
+
+.milkdown .milkdown-latex-inline-edit .container {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.milkdown .milkdown-latex-inline-edit .ProseMirror {
+  padding: 0;
+  margin: 0;
+  min-width: 174px;
+  max-width: 294px;
+  min-height: 24px;
+  font-family: var(--font-mono);
+  line-height: 24px;
+}
+
+.milkdown .milkdown-latex-inline-edit .ProseMirror p {
+  margin: 0;
+  line-height: 24px;
+}
+
+.milkdown .milkdown-latex-inline-edit .ProseMirror .katex {
+  margin: 0;
 }
 
 .milkdown .milkdown-latex-inline-edit .container button {
   width: 24px;
   height: 24px;
+  flex: none;
   display: grid;
   place-items: center;
   border-radius: 8px;
@@ -194,16 +251,18 @@
   color: var(--ink);
 }
 
-/* ===== 防御:悬浮手柄/拖拽光标/斜杠菜单已在 Crepe 层关闭,样式层兜底隐藏 ===== */
+/* ===== 防御:悬浮手柄/拖拽光标/斜杠菜单/选区工具栏已在 Crepe 层关闭,样式层兜底隐藏 ===== */
 .milkdown .milkdown-block-handle,
 .milkdown .crepe-drop-cursor,
-.milkdown .milkdown-slash-menu {
+.milkdown .milkdown-slash-menu,
+.milkdown .milkdown-toolbar {
   display: none !important;
 }
 
 /* ===== 代码块:soft 卡片 + coconut 头部 ===== */
 .milkdown .milkdown-code-block {
   border-radius: var(--r-card);
+  max-width: 100%;
   /* 不能在这里 overflow: hidden——语言下拉(.language-picker)以 absolute
      挂在代码块内部,容器裁剪会把 410px 高的下拉列表拦腰截断(比例不对/被遮挡)。
      圆角裁切下沉到 .cm-editor 自身(见下) */
@@ -213,6 +272,28 @@
 .milkdown .milkdown-code-block .cm-editor {
   border-radius: 0 0 var(--r-card) var(--r-card);
   overflow: hidden;
+  max-width: 100%;
+}
+
+.milkdown .milkdown-code-block .cm-scroller {
+  overflow-x: auto;
+}
+
+/* 代码块度量:占位符要按这两个值给行号槽和工具条留位(见文件末尾) */
+.milkdown .milkdown-code-block {
+  --code-gutter-w: 35px;
+  --code-tools-h: 30px;
+}
+
+/* 软换行开关。CodeMirror 判定是否换行读的是 .cm-content 的 computed
+   white-space(heightOracle 的 wrappingWhiteSpace 白名单),所以这条不只是
+   外观:不换行时 CM 会按最长行给 .cm-content 算 minWidth,长行超出卡片宽度
+   被裁掉(实测 763px 内容塞进 564px 容器,中间的代码看不见也点不到)。
+   值取 break-spaces,与 CM 自己的 .cm-lineWrapping 完全一致。 */
+.milkdown .milkdown-code-block .cm-content {
+  white-space: break-spaces;
+  word-break: break-word;
+  overflow-wrap: anywhere;
 }
 
 /* 语言下拉只向下展开(bottom-start,无 flip),列表高度随视口收缩,
@@ -249,8 +330,8 @@
 }
 
 .milkdown .milkdown-code-block .cm-editor {
-  font-size: 12.5px;
-  line-height: 1.75;
+  font-size: var(--type-code-block);
+  line-height: 1.55;
 }
 
 /* 代码块行号:柔灰(用 --mut 这个次级文字 token),可读但不抢戏。
@@ -275,7 +356,7 @@
 }
 
 .milkdown .milkdown-code-block .cm-gutterElement {
-  font-size: 0.92em;
+  font-size: 0.9em;
 }
 
 /* 代码正文:墨色实色。
@@ -293,6 +374,43 @@
   background: var(--acc-soft) !important;
 }
 
+/* 代码块懒加载占位符。Milkdown 只在代码块进入视口(前后 200px)时才挂载
+   CodeMirror,离开 5 秒后又拆回占位符。而占位符默认排版(0.875em / 1.5、
+   没有行号槽、没有工具条)跟挂载后的 CodeMirror 对不上 —— 实测一块 40 行
+   代码差 839px,滚动经过时整篇文档忽长忽短。WebKit 没有实现 scroll
+   anchoring,读者当前位置会被这个高度差直接顶跑。
+   这里把占位符的字体/字号/行高/左右内边距对齐 .cm-content 的真实度量,
+   并在顶部留出工具条的高度,使挂载前后高度基本相等。 */
+.milkdown .milkdown-code-block .milkdown-code-block-placeholder {
+  padding: calc(var(--code-tools-h) + 4px) 0 4px;
+  font-family: monospace;
+  font-size: var(--type-code-block);
+  line-height: 1.4;
+  color: var(--ink);
+  white-space: break-spaces;
+  word-break: break-word;
+  overflow-wrap: anywhere;
+  /* 占位符自己不滚动:留出滚动条的 8px 会让折行位置比 CodeMirror 早,
+     行数一多又攒出几十像素的高度差 */
+  overflow: hidden;
+  tab-size: 4;
+}
+
+/* 行内代码的 chip 样式(文件末尾的 .crepe .ProseMirror code)会连占位符里的
+   <code> 一起吃掉:display:inline !important + 0.9em + 底色 + 内边距,
+   于是占位符既看着像一大坨行内代码,折行位置也跟 CodeMirror 对不上。 */
+.crepe .ProseMirror .milkdown-code-block-placeholder code,
+.milkdown .milkdown-code-block .milkdown-code-block-placeholder code {
+  display: block !important;
+  padding: 0 2px 0 calc(var(--code-gutter-w) + 6px);
+  font-family: inherit;
+  font-size: 1em;
+  line-height: inherit;
+  background: none;
+  border-radius: 0;
+  color: inherit;
+}
+
 .milkdown .milkdown-code-block .cm-foldPlaceholder {
   background: var(--soft);
   color: var(--mut);
@@ -301,10 +419,10 @@
   padding: 0 6px;
 }
 
-/* 代码块语言/复制等头部按钮:小号、墨色 */
+/* 代码块语言/复制等头部按钮:小号、墨色(相对正文,与 Milkdown 默认 0.75 倍一致) */
 .milkdown .milkdown-code-block button {
   font-family: inherit;
-  font-size: 10.5px;
+  font-size: var(--type-ui-sm);
   letter-spacing: 0.06em;
   color: var(--mut);
   border-radius: 6px;
@@ -325,13 +443,13 @@
 /* ===== 表格:完整可读网格 + coconut 圆角卡片 ===== */
 .milkdown .milkdown-table-block {
   margin: 18px 0;
+  max-width: 100%;
   /* 外框:给 overflow 圆角一个可见的描边。原先只有 border-radius+overflow:hidden
      而无填充无边框,圆角虽裁了但"看不见"(网格线在角上被斜切成豁口,像直角)。
      加 1px 描边后圆角作为卡片轮廓清晰可辨 */
   border: 1px solid var(--line);
   border-radius: var(--r-card);
   overflow: hidden;
-  font-size: 0.92em;
 }
 
 .milkdown .milkdown-table-block table {
@@ -341,11 +459,63 @@
   border-collapse: separate;
   border-spacing: 0;
   width: 100%;
+  table-layout: fixed;
   /* Milkdown 给 table 设了 overflow:hidden 但 border-radius 为 0 →
      选中态 .selectedCell::after(position:absolute、CB=td,是 table 的后代)
      被裁成直角矩形,红选区四个角是尖的、不跟随外框圆角。
-     给 table 同款 --r-card 圆角后,overflow 裁剪即变圆角,选区贴合外框 */
+     给 table 同款 --r-card 圆角 + overflow:hidden,选区/遮罩贴合外框 */
   border-radius: var(--r-card);
+  overflow: hidden;
+}
+
+/* 四角单元格圆角:内径 = 外框圆角减 1px 描边,与 .milkdown-table-block 边框对齐 */
+.milkdown .milkdown-table-block tr:first-child > :first-child {
+  border-top-left-radius: calc(var(--r-card) - 1px);
+}
+
+.milkdown .milkdown-table-block tr:first-child > :last-child {
+  border-top-right-radius: calc(var(--r-card) - 1px);
+}
+
+.milkdown .milkdown-table-block tr:last-child > :first-child {
+  border-bottom-left-radius: calc(var(--r-card) - 1px);
+}
+
+.milkdown .milkdown-table-block tr:last-child > :last-child {
+  border-bottom-right-radius: calc(var(--r-card) - 1px);
+}
+
+/* 单元格选中:box-shadow 随圆角走,替代 Milkdown 直角 outline + offset 错位 */
+.milkdown .milkdown-table-block th:has(.ProseMirror-selectednode),
+.milkdown .milkdown-table-block td:has(.ProseMirror-selectednode) {
+  outline: none;
+  box-shadow: inset 0 0 0 1px var(--acc);
+  z-index: 1;
+}
+
+/* 多格选区遮罩:四角跟随单元格圆角 */
+.milkdown .milkdown-table-block tr:first-child > :first-child.selectedCell::after {
+  border-top-left-radius: calc(var(--r-card) - 1px);
+}
+
+.milkdown .milkdown-table-block tr:first-child > :last-child.selectedCell::after {
+  border-top-right-radius: calc(var(--r-card) - 1px);
+}
+
+.milkdown .milkdown-table-block tr:last-child > :first-child.selectedCell::after {
+  border-bottom-left-radius: calc(var(--r-card) - 1px);
+}
+
+.milkdown .milkdown-table-block tr:last-child > :last-child.selectedCell::after {
+  border-bottom-right-radius: calc(var(--r-card) - 1px);
+}
+
+/* 拖拽预览:同款圆角选框,避免直角 outline 与外框错位 */
+.milkdown .milkdown-table-block .drag-preview {
+  outline: none;
+  box-shadow: inset 0 0 0 1px var(--acc);
+  border-radius: var(--r-card);
+  overflow: hidden;
 }
 
 /* 单元格只画 下边 + 右边 → 相邻单元格共享一条单线,绝不重叠。
@@ -361,13 +531,14 @@
   border-bottom: 1px solid var(--line);
   border-right: 1px solid var(--line);
   padding: 9px 10px;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .milkdown .milkdown-table-block th {
   text-align: left;
   font-weight: 800;
-  font-size: 12px;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.04em;
   color: var(--ink);
   background: transparent;
   /* 表头分隔加重,与表体拉开层次 */
@@ -464,50 +635,99 @@
   color: var(--acc);
 }
 
-/* ===== coconut 排版:标题 / 段落 / 列表 / 引用 / 分割线 / 图片 ===== */
+/* ===== coconut 排版:标题 / 段落 / 列表 / 引用 / 分割线 / 图片 =====
+   标题阶梯相对正文(~1.15 模数),用字号+字重+字距一起分层,
+   避免 h1 像海报、h2 又几乎贴正文。h4–h6 不再缩到比正文还小。 */
 .crepe .ProseMirror h1,
 .crepe .ProseMirror h2,
 .crepe .ProseMirror h3,
 .crepe .ProseMirror h4,
 .crepe .ProseMirror h5,
 .crepe .ProseMirror h6 {
-  font-family: var(--editor-font-family, sans-serif);
-  font-weight: 800;
+  font-family: inherit;
+  font-weight: 700;
   color: var(--ink);
-  letter-spacing: -0.01em;
-  line-height: 1.3;
-  margin: 40px 0 14px;
+  letter-spacing: -0.018em;
+  line-height: 1.28;
+  margin: 1.2em 0 0.32em;
+  scroll-margin-top: 12px;
 }
 
 .crepe .ProseMirror h1 {
-  font-size: 34px;
-  letter-spacing: -0.02em;
-  line-height: 1.25;
-  margin: 0 0 22px;
+  font-size: 1.5em;
+  line-height: 1.26;
+  letter-spacing: -0.022em;
+  margin: 0 0 0.5em;
   border-bottom: none;
   padding-bottom: 0;
 }
 
 .crepe .ProseMirror h2 {
-  font-size: 22px;
-  margin-top: 48px;
+  font-size: 1.28em;
+  margin-top: 1.35em;
 }
 
 .crepe .ProseMirror h3 {
-  font-size: 18px;
-  margin-top: 36px;
+  font-size: 1.14em;
+  letter-spacing: -0.012em;
+  margin-top: 1.15em;
 }
 
-.crepe .ProseMirror h4,
-.crepe .ProseMirror h5,
+.crepe .ProseMirror h4 {
+  font-size: 1.06em;
+  letter-spacing: -0.008em;
+  margin-top: 1.05em;
+}
+
+.crepe .ProseMirror h5 {
+  font-size: 1em;
+  letter-spacing: 0;
+  font-weight: 650;
+  margin-top: 1em;
+}
+
 .crepe .ProseMirror h6 {
-  font-size: 15.5px;
-  margin-top: 28px;
+  font-size: 1em;
+  letter-spacing: 0;
+  font-weight: 600;
+  color: color-mix(in srgb, var(--ink) 78%, transparent);
+  margin-top: 0.95em;
+}
+
+/* 标题后标出 Markdown 层级; 第二行 / "" 避免读屏念出装饰文字 */
+:root[data-heading-marks="on"] .crepe .ProseMirror h1::after { content: "H1"; content: "H1" / ""; }
+:root[data-heading-marks="on"] .crepe .ProseMirror h2::after { content: "H2"; content: "H2" / ""; }
+:root[data-heading-marks="on"] .crepe .ProseMirror h3::after { content: "H3"; content: "H3" / ""; }
+:root[data-heading-marks="on"] .crepe .ProseMirror h4::after { content: "H4"; content: "H4" / ""; }
+:root[data-heading-marks="on"] .crepe .ProseMirror h5::after { content: "H5"; content: "H5" / ""; }
+:root[data-heading-marks="on"] .crepe .ProseMirror h6::after { content: "H6"; content: "H6" / ""; }
+
+:root[data-heading-marks="on"] .crepe .ProseMirror h1::after,
+:root[data-heading-marks="on"] .crepe .ProseMirror h2::after,
+:root[data-heading-marks="on"] .crepe .ProseMirror h3::after,
+:root[data-heading-marks="on"] .crepe .ProseMirror h4::after,
+:root[data-heading-marks="on"] .crepe .ProseMirror h5::after,
+:root[data-heading-marks="on"] .crepe .ProseMirror h6::after {
+  display: inline-block;
+  margin-left: 0.42em;
+  font-family: var(--font-mono, ui-monospace, SFMono-Regular, Menlo, Consolas, monospace);
+  font-size: 13px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.04em;
+  line-height: 1;
+  color: var(--mut);
+  opacity: 0.78;
+  vertical-align: middle;
+  pointer-events: none;
+  user-select: none;
+  white-space: nowrap;
 }
 
 .crepe .ProseMirror p {
-  margin: 0 0 16px;
-  line-height: 1.95;
+  margin: 0 0 10px;
+  padding: 0;
+  line-height: inherit;
   color: color-mix(in srgb, var(--ink) 93%, transparent);
 }
 
@@ -515,11 +735,11 @@
    Milkdown 把列表渲染成 div.milkdown-list-item-block(非 ul/ol),每项是
    li.list-item(display:flex)→ [label-wrapper 标记][children 正文]。
    原问题:① 标记填 --crepe-color-outline(--line,10%墨)几乎看不见;
-   ② 列表项里的 <p> 继承正文 1.95 行高 → 列表很空、标记与文字光学错位 */
+   ② 列表项里的 <p> 若继承过松行高 → 列表很空、标记与文字光学错位 */
 .crepe .ProseMirror .milkdown-list-item-block,
 .crepe .ProseMirror .milkdown-list-item-block li,
 .crepe .ProseMirror .milkdown-list-item-block p {
-  line-height: 1.6;
+  line-height: 1.5;
 }
 
 /* 抵消 Milkdown reset 的 .ProseMirror p{padding:4px 0}:那段内边距让列表项
@@ -529,62 +749,104 @@
   padding: 0;
 }
 
-/* 标记(无序圆点 / 有序序号 / 勾选框):--line → --mut,清晰可辨 */
 .crepe .ProseMirror .milkdown-list-item-block li .label-wrapper {
   color: var(--mut);
-  /* 勾选框可点击(任务项):给手型提示可勾选 */
+  height: 1.5em;
+  /* 普通项目符号不拦点击,否则整篇列表点不进光标;勾选框仍可点 */
+  pointer-events: none;
+}
+
+.crepe .ProseMirror .milkdown-list-item-block li .label-wrapper:has(.checked),
+.crepe .ProseMirror .milkdown-list-item-block li .label-wrapper:has(.unchecked) {
+  pointer-events: auto;
   cursor: pointer;
-  /* 高度跟随行高(1.6em),让标记垂直居中点对齐首行文字居中点。
-     Milkdown 原固定 32px 与 1.95 行高绑定;行高收紧后不同步,标记会偏低 */
-  height: 1.6em;
 }
 
 .crepe .ProseMirror .milkdown-list-item-block li .label-wrapper svg {
   fill: var(--mut);
 }
 
+/* 任务勾选框:视觉与描线动画由 components.css 的 .t-check 统一定义
+   (它认 .checked > .t-check 这个钩子,正对上 Milkdown 翻的类);
+   居中已由 .milkdown-icon 的 inline-flex 负责,这里只让盒子随正文字号缩放。 */
+.crepe .ProseMirror .milkdown-list-item-block li .label.checked,
+.crepe .ProseMirror .milkdown-list-item-block li .label.unchecked {
+  --check-size: 0.92em;
+}
+
 .crepe .ProseMirror .milkdown-list-item-block li .label-wrapper .label {
-  height: 1.6em;
+  height: 1.5em;
   /* 原 padding:4px 0 把有序序号往下顶偏,移除让其随 flex 自然居中 */
   padding: 0;
 }
 
 .crepe .ProseMirror blockquote {
-  margin: 22px 0;
-  padding: 16px 20px;
+  margin: 16px 0;
+  padding: 8px 14px;
   background: var(--soft);
   border-left: none;
   /* 左侧贴齐竖条不做圆角,仅右侧保留卡片圆角 */
   border-radius: 0 var(--r-card) var(--r-card) 0;
   color: color-mix(in srgb, var(--ink) 92%, transparent);
-  font-size: 0.98em;
 }
 
-/* 覆盖 Crepe 默认 ::before:胶囊圆头竖条 → 方头、通高,紧贴左侧直角 */
+/* 覆盖 Crepe 默认 ::before:胶囊圆头竖条 → 方头、通高,紧贴左侧直角。
+   Crepe 用 --crepe-color-selected(粉底)画竖条,看起来像选区泄漏。 */
 .crepe .ProseMirror blockquote::before {
   border-radius: 0;
   top: 0;
   bottom: 0;
+  background: color-mix(in srgb, var(--ink) 18%, transparent);
 }
 
 .crepe .ProseMirror blockquote p {
   margin: 0;
+  padding: 0;
   color: inherit;
 }
 
+.crepe .ProseMirror blockquote p + p {
+  margin-top: 0.45em;
+}
+
 .crepe .ProseMirror code {
-  font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
-  font-size: 0.88em;
+  display: inline !important;
+  font-family: var(--font-mono);
+  font-size: var(--type-code);
   background: var(--soft);
   border-radius: 6px;
   padding: 2px 6px;
   color: var(--acc);
+  box-decoration-break: clone;
+  -webkit-box-decoration-break: clone;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+/* ===== 行内公式:KaTeX 默认比正文偏大,缩至与文字齐平;
+   display:inline 避免 inline-block 把选区切成多块粉色胶囊 ===== */
+.crepe .ProseMirror span[data-type="math_inline"] {
+  display: inline !important;
+  padding: 0 0.15em;
+  vertical-align: baseline;
+  line-height: 1;
+}
+
+.crepe .ProseMirror span[data-type="math_inline"] .katex {
+  font-size: 0.95em;
+  max-width: 100%;
+}
+
+.crepe .ProseMirror [data-type="math_block"],
+.crepe .ProseMirror .katex-display {
+  max-width: 100%;
+  overflow-x: clip;
 }
 
 .crepe .ProseMirror hr {
   border: none;
   border-top: 2px solid var(--line2);
-  margin: 40px 0;
+  margin: 28px 0;
 }
 
 .crepe .ProseMirror img {
@@ -599,6 +861,46 @@
 
 .crepe .ProseMirror a:hover {
   text-decoration: underline;
+}
+
+/* ===== 选区:只高亮文字,不要把块级 padding / 段末空行涂成粉底条 ===== */
+.milkdown .ProseMirror .ProseMirror-selectednode,
+.milkdown .ProseMirror li.ProseMirror-selectednode,
+.milkdown .ProseMirror blockquote.ProseMirror-selectednode {
+  background: transparent !important;
+  outline: none;
+  box-shadow: none;
+}
+
+.milkdown .ProseMirror img.ProseMirror-selectednode {
+  outline: 2px solid var(--acc);
+}
+
+.milkdown .ProseMirror ::selection,
+.milkdown .ProseMirror ::-moz-selection {
+  background: var(--crepe-color-selected);
+  color: inherit;
+}
+
+/* Crepe 在 selectednode 内清掉 ::selection,靠块粉底表示选中。
+   块粉底已去掉,这里保持内部透明,避免引用块/列表底部空行被涂成一条粉底。 */
+.milkdown .ProseMirror .ProseMirror-selectednode::selection,
+.milkdown .ProseMirror .ProseMirror-selectednode *::selection,
+.milkdown .ProseMirror .ProseMirror-selectednode::-moz-selection,
+.milkdown .ProseMirror .ProseMirror-selectednode *::-moz-selection {
+  background: transparent !important;
+}
+
+.milkdown .ProseMirror br::selection,
+.milkdown .ProseMirror br::-moz-selection,
+.milkdown .ProseMirror span[data-type="hardbreak"]::selection,
+.milkdown .ProseMirror span[data-type="hardbreak"]::-moz-selection {
+  background: transparent !important;
+}
+
+.milkdown .milkdown-table-block .selectedCell::after {
+  background-color: var(--crepe-color-selected);
+  opacity: 0.5;
 }
 
 /* ===== ==高亮==(==x== → <mark class="hl">) ===== */
@@ -625,7 +927,31 @@
 
 /* ===== 智能换行:单换行(soft break)渲染为换行 =====
    Milkdown 把 md 里的单换行映射为 isInline hardbreak span(内容是空格),
-   默认是 inline 元素 → 显示成空格。这里转成 block 让其独占一行。 */
+   默认是 inline 元素 → 显示成空格。这里转成 block 让其独占一行。
+   段末那一个紧贴 trailingBreak,是块与块之间的换行,显示出来会在
+   引用块/段落下多出一行空选区。 */
 .crepe .ProseMirror span[data-type="hardbreak"][data-is-inline="true"] {
   display: block;
+}
+
+.crepe .ProseMirror span[data-type="hardbreak"][data-is-inline="true"]:has(+ br.ProseMirror-trailingBreak),
+.crepe .ProseMirror p > span[data-type="hardbreak"][data-is-inline="true"]:last-child {
+  display: none;
+}
+
+/* 非空段落的 trailingBreak 在中文满行时会折到下一行,选中就是一整条粉底。
+   空段落仍需要它撑高度。 */
+.crepe .ProseMirror br.ProseMirror-trailingBreak {
+  display: none;
+}
+
+.crepe .ProseMirror p > br.ProseMirror-trailingBreak:only-child,
+.crepe .ProseMirror h1 > br.ProseMirror-trailingBreak:only-child,
+.crepe .ProseMirror h2 > br.ProseMirror-trailingBreak:only-child,
+.crepe .ProseMirror h3 > br.ProseMirror-trailingBreak:only-child,
+.crepe .ProseMirror h4 > br.ProseMirror-trailingBreak:only-child,
+.crepe .ProseMirror h5 > br.ProseMirror-trailingBreak:only-child,
+.crepe .ProseMirror h6 > br.ProseMirror-trailingBreak:only-child,
+.crepe .ProseMirror li > br.ProseMirror-trailingBreak:only-child {
+  display: inline;
 }

@@ -25,6 +25,11 @@ comrak = "0.31"
 chardetng = "0.1"
 encoding_rs = "0.8"
 base64 = "0.21"
+tantivy = "0.24"
+trash = "5"
+
+[target.'cfg(target_os = "macos")'.dependencies]
+objc2 = "0.6"
 
 [profile.release]
 # 四项合计能把二进制再压 30-40%

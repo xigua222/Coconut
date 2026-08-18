@@ -50,6 +50,39 @@ export function readDocument(path: string): Promise<ReadResult> {
   return invoke<ReadResult>("read_document", { path });
 }
 
+export type SearchKind = string;
+
+export interface LiveSearchDoc {
+  id: string;
+  title: string;
+  path: string;
+  body: string;
+  kind: SearchKind;
+}
+
+export interface SearchHit {
+  id: string;
+  title: string;
+  path: string;
+  kind: SearchKind;
+  snippet: string;
+  score: number;
+}
+
+/** 把工作区、最近文件、已打开标签同步进 Tantivy 内存索引 */
+export function searchSync(payload: {
+  roots: string[];
+  extraFiles: { path: string; kind: SearchKind }[];
+  liveDocs: LiveSearchDoc[];
+}): Promise<void> {
+  return invoke("search_sync", { payload });
+}
+
+/** 在已同步的 Tantivy 索引上查询 */
+export function searchQuery(query: string): Promise<SearchHit[]> {
+  return invoke<SearchHit[]>("search_query", { query });
+}
+
 /**
  * write_document:原子写。expectedMtime 为 null 表示不做校验(强制写,
  * 用于"保留当前版本(覆盖)"与另存为)。mtime 不匹配抛 ConflictError。
@@ -67,9 +100,35 @@ export async function writeDocument(
   }
 }
 
+/** 同目录改名,返回改完后的绝对路径 */
+export function renamePath(from: string, toName: string): Promise<string> {
+  return invoke<string>("rename_path", { from, toName });
+}
+
+/** 移到系统废纸篓/回收站 */
+export function trashPath(path: string): Promise<void> {
+  return invoke("trash_path", { path });
+}
+
+export interface FileStat {
+  path: string;
+  size: number | null;
+  mtime: number | null;
+}
+
+/** 批量读文件大小与修改时间;缺失文件 size/mtime 为 null */
+export function statFiles(paths: string[]): Promise<FileStat[]> {
+  return invoke<FileStat[]>("stat_files", { paths });
+}
+
 /** scan_directory:递归列出目录与 Markdown 文件(文件列表面板) */
 export function scanDirectory(path: string): Promise<DirEntry[]> {
   return invoke<DirEntry[]>("scan_directory", { path });
+}
+
+/** 确保「文档/coconut」默认工作区存在,返回路径 */
+export function ensureDefaultWorkspace(): Promise<string> {
+  return invoke<string>("ensure_default_workspace");
 }
 
 /** export_html:comrak 渲染(可选功能,设置面板导出) */

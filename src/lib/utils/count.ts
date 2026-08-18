@@ -15,10 +15,20 @@ export interface TextStats {
 const CJK = /[\u3400-\u4dbf\u4e00-\u9fff\uf900-\ufaff]/g;
 const LATIN_WORD = /[a-z0-9]+(?:['’-][a-z0-9]+)*/gi;
 
+/** 状态栏与大纲每次重渲染都会问一次统计,而重渲染频率跟着滚动走;
+ *  全文正则扫描不能每帧重做,按内容缓存最近几篇的结果。 */
+const cache = new Map<string, TextStats>();
+const CACHE_MAX = 4;
+
 export function countStats(md: string): TextStats {
-  return {
+  const hit = cache.get(md);
+  if (hit) return hit;
+  const stats: TextStats = {
     words: (md.match(CJK)?.length ?? 0) + (md.match(LATIN_WORD)?.length ?? 0),
     chars: md.length,
     lines: md.length === 0 ? 1 : md.split("\n").length,
   };
+  cache.set(md, stats);
+  if (cache.size > CACHE_MAX) cache.delete(cache.keys().next().value as string);
+  return stats;
 }

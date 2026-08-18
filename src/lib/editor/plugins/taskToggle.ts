@@ -38,6 +38,12 @@ export const taskToggleKeymap = $useKeymap("mdreaderTaskToggle", {
  * DOM 结构:li.list-item > .label-wrapper > svg(勾选框 / 项目符号)。
  * 点击落在 .label-wrapper 上时,定位其所属 list_item;仅当它是任务项
  * (checked != null)时翻转,普通项目符号(无序/有序)忽略、不阻止默认行为。
+ *
+ * 必须挂 pointerdown 而不是 click:Crepe 7.22 的 list-item 自己也在
+ * .label-wrapper 上翻 checked,并且 stopPropagation —— 事件冒不到编辑器根节点,
+ * 这里就自动让位、全程只翻一次。挂 click 则两边各翻一次正好抵消,表现是
+ * 勾选框点了毫无反应(pointerdown 的 preventDefault 拦不住 click)。
+ * 反过来若 Crepe 哪天不再自带该行为,事件照常冒上来由这里接管。
  */
 export const taskClickToggle = $prose(
   () =>
@@ -45,7 +51,7 @@ export const taskClickToggle = $prose(
       key: new PluginKey("MDREADER_TASK_CLICK"),
       props: {
         handleDOMEvents: {
-          click: (view, event) => {
+          pointerdown: (view, event) => {
             const target = event.target as HTMLElement | null;
             const labelWrapper = target?.closest(".label-wrapper") as HTMLElement | null;
             if (!labelWrapper) return false;

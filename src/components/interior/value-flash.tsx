@@ -20,6 +20,7 @@ const SETTLE = { type: "spring", stiffness: 260, damping: 34, mass: 0.8 } as con
 
 const CLEAR = { duration: 0.16, ease: [0.4, 0, 1, 1] } as const;
 const DROP = { duration: 0.14, ease: [0.4, 0, 1, 1] } as const;
+const TICK = { duration: 0.22, ease: [0.23, 1, 0.32, 1] } as const;
 const STILL = { duration: 0 } as const;
 
 const GLYPH: Record<"up" | "down", ReactNode> = {
@@ -105,32 +106,39 @@ export type ValueFlashProps = {
   hold?: number;
   announceAfter?: number;
   className?: string;
+  /** quiet: 只做数字轻换,无底色/箭头 */
+  variant?: "default" | "quiet";
 };
 
 export function ValueFlash({
   value,
   format,
   label,
-  hold = 900,
-  announceAfter = 700,
+  hold,
+  announceAfter,
   className = "",
+  variant = "default",
 }: ValueFlashProps) {
-  const { direction, flashing, changeId } = useValueFlash(value, { hold });
+  const quiet = variant === "quiet";
+  const { direction, flashing, changeId } = useValueFlash(value, {
+    hold: hold ?? (quiet ? 420 : 900),
+  });
   const reduced = useReducedMotion();
 
   const text = format ? format(value) : String(value);
   const [settled, setSettled] = useState(text);
+  const liveAfter = announceAfter ?? (quiet ? 280 : 700);
 
   useEffect(() => {
-    const id = setTimeout(() => setSettled(text), announceAfter);
+    const id = setTimeout(() => setSettled(text), liveAfter);
     return () => clearTimeout(id);
-  }, [text, announceAfter]);
+  }, [text, liveAfter]);
 
   const tone = flashing
     ? direction === "up"
       ? "text-emerald-600 dark:text-emerald-400"
       : "text-red-600 dark:text-red-400"
-    : "text-stone-700 dark:text-stone-200";
+    : "";
 
   const tint =
     direction === "up"
@@ -140,17 +148,19 @@ export function ValueFlash({
   return (
     <motion.span
       initial={false}
-      animate={{ scale: reduced ? 1 : flashing ? 1.05 : 1 }}
+      animate={{ scale: 1 }}
       transition={reduced ? STILL : flashing ? LIFT : SETTLE}
-      className={`relative inline-grid grid-flow-col items-center gap-1.5 rounded-[6px] px-1.5 py-[3px] text-[13px] font-medium tabular-nums transition-colors duration-200 ${tone} ${className}`}
+      className={`relative inline-flex items-center tabular-nums transition-colors duration-200 ${
+        !quiet && flashing ? "gap-1 rounded-[5px] px-1.5 py-[3px]" : ""
+      } ${quiet ? "" : tone} ${className}`}
     >
-      {direction ? (
+      {!quiet && direction ? (
         <motion.span
           aria-hidden
           initial={{ opacity: 0 }}
           animate={{ opacity: flashing ? 1 : 0 }}
           transition={reduced ? STILL : flashing ? CELL : CLEAR}
-          className={`pointer-events-none absolute inset-0 rounded-[6px] ${tint}`}
+          className={`pointer-events-none absolute inset-0 rounded-[5px] ${tint}`}
         />
       ) : null}
 
@@ -161,60 +171,81 @@ export function ValueFlash({
             initial={
               reduced
                 ? { opacity: 0 }
-                : {
-                    opacity: 0,
-                    y: direction === "down" ? "-0.85em" : "0.85em",
-                    filter: "blur(5px)",
-                  }
+                : quiet
+                  ? { opacity: 0.4, y: direction === "down" ? "-0.4em" : "0.4em" }
+                  : {
+                      opacity: 0,
+                      y: direction === "down" ? "-0.85em" : "0.85em",
+                      filter: "blur(5px)",
+                    }
             }
-            animate={{ opacity: 1, y: "0em", filter: "blur(0px)" }}
+            animate={
+              quiet
+                ? { opacity: 1, y: "0em" }
+                : { opacity: 1, y: "0em", filter: "blur(0px)" }
+            }
             exit={
               reduced
                 ? { opacity: 0, transition: STILL }
-                : {
-                    opacity: 0,
-                    y: direction === "down" ? "0.7em" : "-0.7em",
-                    filter: "blur(4px)",
-                    transition: DROP,
-                  }
+                : quiet
+                  ? {
+                      opacity: 0,
+                      y: direction === "down" ? "0.35em" : "-0.35em",
+                      transition: TICK,
+                    }
+                  : {
+                      opacity: 0,
+                      y: direction === "down" ? "0.7em" : "-0.7em",
+                      filter: "blur(4px)",
+                      transition: DROP,
+                    }
             }
-            transition={reduced ? STILL : ROLL}
+            transition={reduced ? STILL : quiet ? TICK : ROLL}
             className="col-start-1 row-start-1"
           >
             {text}
           </motion.span>
         </AnimatePresence>
       </span>
-      <span aria-hidden className="relative grid size-[1em] place-items-center">
-        <AnimatePresence initial={false}>
-          {flashing && direction ? (
-            <motion.svg
-              key={`${changeId}-${direction}`}
-              viewBox="0 0 256 256"
-              fill="currentColor"
-              initial={
-                reduced
-                  ? { opacity: 0 }
-                  : {
-                      opacity: 0,
-                      scale: 0.4,
-                      y: direction === "up" ? "0.3em" : "-0.3em",
-                    }
-              }
-              animate={{ opacity: 1, scale: 1, y: "0em" }}
-              exit={
-                reduced
-                  ? { opacity: 0, transition: STILL }
-                  : { opacity: 0, scale: 0.8, transition: CLEAR }
-              }
-              transition={reduced ? STILL : POP}
-              className="col-start-1 row-start-1 block h-[0.68em] w-[0.68em]"
-            >
-              {GLYPH[direction]}
-            </motion.svg>
-          ) : null}
-        </AnimatePresence>
-      </span>
+      {!quiet ? (
+        <span
+          aria-hidden
+          className="relative grid place-items-center"
+          style={{
+            width: flashing ? "0.7em" : 0,
+            overflow: "hidden",
+          }}
+        >
+          <AnimatePresence initial={false}>
+            {flashing && direction ? (
+              <motion.svg
+                key={`${changeId}-${direction}`}
+                viewBox="0 0 256 256"
+                fill="currentColor"
+                initial={
+                  reduced
+                    ? { opacity: 0 }
+                    : {
+                        opacity: 0,
+                        scale: 0.4,
+                        y: direction === "up" ? "0.3em" : "-0.3em",
+                      }
+                }
+                animate={{ opacity: 1, scale: 1, y: "0em" }}
+                exit={
+                  reduced
+                    ? { opacity: 0, transition: STILL }
+                    : { opacity: 0, scale: 0.8, transition: CLEAR }
+                }
+                transition={reduced ? STILL : POP}
+                className="block h-[0.68em] w-[0.68em]"
+              >
+                {GLYPH[direction]}
+              </motion.svg>
+            ) : null}
+          </AnimatePresence>
+        </span>
+      ) : null}
       <span className="sr-only" aria-live="polite">
         {label ? `${label}: ${settled}` : settled}
       </span>

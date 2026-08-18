@@ -83,7 +83,11 @@ pub fn build(app: &AppHandle) -> tauri::Result<Menu<Wry>> {
         let file_menu = build_file_menu(app)?;
         let edit_menu = build_edit_menu(app)?;
         let view_menu = build_view_menu(app)?;
-        let menu = Menu::with_items(app, &[&app_menu, &file_menu, &edit_menu, &view_menu, &window_menu])?;
+        let tab_menu = build_tab_menu(app)?;
+        let menu = Menu::with_items(
+            app,
+            &[&app_menu, &file_menu, &edit_menu, &view_menu, &tab_menu, &window_menu],
+        )?;
         return Ok(menu);
     }
 
@@ -94,7 +98,8 @@ pub fn build(app: &AppHandle) -> tauri::Result<Menu<Wry>> {
         file_menu.append(&item(app, "settings", "设置…", Some("CmdOrCtrl+,"))?)?;
         let edit_menu = build_edit_menu(app)?;
         let view_menu = build_view_menu(app)?;
-        let menu = Menu::with_items(app, &[&file_menu, &edit_menu, &view_menu])?;
+        let tab_menu = build_tab_menu(app)?;
+        let menu = Menu::with_items(app, &[&file_menu, &edit_menu, &view_menu, &tab_menu])?;
         return Ok(menu);
     }
 }
@@ -108,6 +113,7 @@ fn build_file_menu(app: &AppHandle) -> tauri::Result<Submenu<Wry>> {
     Ok(SubmenuBuilder::new(app, "文件")
         .item(&item(app, "new", "新建", Some("CmdOrCtrl+N"))?)
         .item(&item(app, "open", "打开…", Some("CmdOrCtrl+O"))?)
+        .item(&item(app, "open-folder", "添加工作区…", Some("CmdOrCtrl+Shift+O"))?)
         .item(&recent_submenu(app)?)
         .separator()
         .item(&item(app, "save", "保存", Some("CmdOrCtrl+S"))?)
@@ -138,8 +144,21 @@ fn build_edit_menu(app: &AppHandle) -> tauri::Result<Submenu<Wry>> {
         .build()?)
 }
 
+/// 标签导航:加速键在原生菜单注册后由系统先截获,再 emit 给前端统一处理。
+fn build_tab_menu(app: &AppHandle) -> tauri::Result<Submenu<Wry>> {
+    Ok(SubmenuBuilder::new(app, "标签")
+        .item(&item(app, "prev-tab", "上一个标签", Some("CmdOrCtrl+Shift+BracketLeft"))?)
+        .item(&item(app, "next-tab", "下一个标签", Some("CmdOrCtrl+Shift+BracketRight"))?)
+        .separator()
+        .item(&item(app, "close-other-tabs", "关闭其他标签", None)?)
+        .item(&item(app, "close-tabs-right", "关闭右侧标签", None)?)
+        .item(&item(app, "close-all-tabs", "关闭全部标签", None)?)
+        .build()?)
+}
+
 fn build_view_menu(app: &AppHandle) -> tauri::Result<Submenu<Wry>> {
     Ok(SubmenuBuilder::new(app, "视图")
+        .item(&item(app, "toggle-sidebar", "显示/隐藏侧栏", Some("CmdOrCtrl+\\"))?)
         .item(&item(app, "toggle-outline", "显示/隐藏大纲", None)?)
         .item(&item(app, "toggle-source", "源码模式", Some("CmdOrCtrl+E"))?)
         .item(&item(app, "reload", "重新从磁盘加载", Some("CmdOrCtrl+Shift+R"))?)

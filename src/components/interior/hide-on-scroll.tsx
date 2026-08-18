@@ -79,19 +79,27 @@ export function useHideOnScroll<T extends HTMLElement = HTMLDivElement>({
 
       if (y < 0 || y > max) return;
 
-      const dy = y - last.current;
-      last.current = y;
+        const dy = y - last.current;
+        last.current = y;
 
-      const top = y <= guard;
-      setAtTop((prev) => (prev === top ? prev : top));
+        const top = y <= guard;
+        setAtTop((prev) => (prev === top ? prev : top));
 
-      if (held.current || top) {
-        accum.current = 0;
-        setHidden((prev) => (prev ? false : prev));
-        return;
-      }
+        if (held.current || top) {
+          accum.current = 0;
+          setHidden((prev) => (prev ? false : prev));
+          return;
+        }
 
-      if (dy === 0) return;
+        // 贴底冻结:顶栏收展改变内容区高度 → scrollTop 被浏览器夹紧产生
+        // 一次性反向跳变;若算作上滑会触发"显示→再隐藏"循环振荡(触底疯狂回弹)。
+        // 贴底时一律不累积方向;真正的上滑会让 y 离开底部,下一帧恢复正常判定。
+        if (y >= max - 1) {
+          accum.current = 0;
+          return;
+        }
+
+        if (dy === 0) return;
       if (dy > 0 !== accum.current > 0) accum.current = 0;
       accum.current += dy;
 

@@ -5,13 +5,15 @@
  * "样式是可替换的示范"哲学,把组件实际用到的工具类子集映射到 coconut token。
  *
  * 约定:
- * - 仅定义亮色主题类;dark: 变体在单主题下自然失效(类名无样式,无害);
+ * - 颜色类映射到 coconut token;深色靠 :root[data-theme="coconut-dark"] 换 token,
+ *   组件里的 dark: 变体未单独 shim(无样式、无害);
  * - 品牌蓝 #4568FF 一律映射为品牌红 --acc;stone 灰阶映射到 --ink/--mut/--soft;
  * - 组件文件保持与上游一致,方便以后直接同步更新。
  */
 
 /* ---- 显示与定位 ---- */
 .flex { display: flex; }
+.flex-wrap { flex-wrap: wrap; }
 .inline-flex { display: inline-flex; }
 .grid { display: grid; }
 .inline-grid { display: inline-grid; }
@@ -23,10 +25,13 @@
 .sticky { position: sticky; }
 .inset-0 { inset: 0; }
 .inset-x-0 { left: 0; right: 0; }
+.inset-y-0 { top: 0; bottom: 0; }
 .top-0 { top: 0; }
 .bottom-0 { bottom: 0; }
 .inset-y-0 { top: 0; bottom: 0; }
 .left-0 { left: 0; }
+/* Drawer 右侧面板锚定:缺失时 absolute 面板停静态位(屏幕中间) */
+.right-0 { right: 0; }
 .top-\[2px\] { top: 2px; }
 .left-\[2px\] { left: 2px; }
 .z-10 { z-index: 10; }
@@ -42,9 +47,11 @@
 .flex-col { flex-direction: column; }
 .items-center { align-items: center; }
 .items-start { align-items: flex-start; }
+.justify-start { justify-content: flex-start; }
 .justify-center { justify-content: center; }
 .justify-end { justify-content: flex-end; }
 .justify-items-end { justify-items: end; }
+.justify-items-stretch { justify-items: stretch; }
 .place-items-center { place-items: center; }
 .gap-1 { gap: 4px; }
 .gap-1\.5 { gap: 6px; }
@@ -115,8 +122,9 @@
 
 /* ---- 排版 ---- */
 .font-medium { font-weight: 500; }
-.font-mono { font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace; }
+.font-mono { font-family: var(--font-mono); }
 .tabular-nums { font-variant-numeric: tabular-nums; }
+.leading-none { line-height: 1; }
 .leading-5 { line-height: 1.25rem; }
 .leading-\[18px\] { line-height: 18px; }
 .leading-relaxed { line-height: 1.625; }
@@ -160,12 +168,16 @@
 .placeholder\:text-stone-400::placeholder { color: color-mix(in srgb, var(--mut) 85%, transparent); }
 
 /* ---- 边框 ---- */
+/* 单边类必须用单边属性:border-style 是简写,会点亮其余三边的默认宽度
+   (medium),抽屉面板(.border-l)与页脚(.border-t)曾因此多出幽灵实线边框 */
 .border { border-width: 1px; border-style: solid; }
-.border-b { border-bottom-width: 1px; border-style: solid; }
-.border-t { border-top-width: 1px; border-style: solid; }
-.border-l { border-left-width: 1px; border-style: solid; }
-.border-r { border-right-width: 1px; border-style: solid; }
+.border-transparent { border-color: transparent; }
+.border-b { border-bottom-width: 1px; border-bottom-style: solid; }
+.border-t { border-top-width: 1px; border-top-style: solid; }
+.border-l { border-left-width: 1px; border-left-style: solid; }
+.border-r { border-right-width: 1px; border-right-style: solid; }
 .border-stone-200 { border-color: var(--line); }
+.border-\[\#4568FF\] { border-color: var(--acc); }
 .rounded-\[2px\] { border-radius: 2px; }
 .rounded-\[4px\] { border-radius: 4px; }
 .rounded-\[5px\] { border-radius: 5px; }
@@ -173,6 +185,22 @@
 .rounded-\[7px\] { border-radius: 7px; }
 .rounded-\[9px\] { border-radius: 9px; }
 .rounded-\[11px\] { border-radius: 11px; }
+.rounded-\[12px\] { border-radius: 12px; }
+.rounded-t-\[8px\] { border-top-left-radius: 8px; border-top-right-radius: 8px; }
+.top-1 { top: 4px; }
+.bottom-\[-1px\] { bottom: -1px; }
+.pt-1 { padding-top: 4px; }
+.border-b-0 { border-bottom-width: 0; }
+.leading-\[1\.4\] { line-height: 1.4; }
+.hover\:bg-stone-200\/50:hover { background-color: color-mix(in srgb, var(--ink) 8%, transparent); }
+.after\:pointer-events-none::after { pointer-events: none; }
+.after\:absolute::after { position: absolute; }
+.after\:inset-0::after { inset: 0; }
+.after\:rounded-t-\[8px\]::after { border-top-left-radius: 8px; border-top-right-radius: 8px; }
+.after\:content-\[\'\'\]::after { content: ""; }
+.focus-visible\:after\:shadow-\[inset_0_0_0_1px_\#4568FF\]:focus-visible::after {
+  box-shadow: inset 0 0 0 1px var(--acc);
+}
 .rounded-\[14px\] { border-radius: 14px; }
 .rounded-full { border-radius: 9999px; }
 .rounded-l-\[14px\] { border-top-left-radius: 14px; border-bottom-left-radius: 14px; }
@@ -225,6 +253,10 @@
 .focus-visible\:border-\[#4568FF\]:focus-visible { border-color: var(--acc); }
 .focus-visible\:text-stone-700:focus-visible { color: var(--ink); }
 .focus-visible\:outline-none:focus-visible { outline: none; }
+.focus-visible\:outline-\[\#4568FF\]:focus-visible { outline-color: var(--acc); }
+.appearance-none { appearance: none; }
+.\[\&\:\:-webkit-search-cancel-button\]\:appearance-none::-webkit-search-cancel-button { appearance: none; }
+.\[\&\:\:-webkit-search-decoration\]\:appearance-none::-webkit-search-decoration { appearance: none; }
 .focus-visible\:shadow-\[0_1px_2px_rgba\(28\,25\,23\,0\.08\)\,0_10px_20px_-14px_rgba\(69\,104\,255\,0\.6\)\]:focus-visible {
   box-shadow: 0 1px 2px rgba(32, 30, 29, 0.08), 0 10px 20px -14px rgba(236, 48, 19, 0.5);
 }
@@ -235,6 +267,12 @@
 /* ---- 过渡 ---- */
 .duration-150 { transition-duration: 150ms; }
 .duration-200 { transition-duration: 200ms; }
+
+/* ---- 响应式(Tailwind sm 断点;桌面视口恒命中) ---- */
+@media (min-width: 640px) {
+  .sm\:inline { display: inline; }
+  .sm\:p-6 { padding: 24px; }
+}
 .transition-colors {
   transition-property: color, background-color, border-color, text-decoration-color, fill, stroke;
   transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
@@ -248,8 +286,57 @@
 
 /* ---- 杂项 ---- */
 .outline-none { outline: none; }
-.select-none { user-select: none; }
+
+/* Tailwind preflight 缺口:WebKit 原生 input 边框 / ul 外边距会穿出
+   Command Palette。工具类 outline-none 只关 outline,关不掉 UA 边框。 */
+input.outline-none,
+textarea.outline-none {
+  appearance: none;
+  border: none;
+  outline: none;
+  box-shadow: none;
+  background: transparent;
+  font: inherit;
+  color: inherit;
+  padding: 0;
+  margin: 0;
+  border-radius: 0;
+}
+
+input.outline-none:focus,
+input.outline-none:focus-visible {
+  outline: none;
+  outline-offset: 0;
+  box-shadow: none;
+}
+
+[role="listbox"],
+[role="tree"],
+[role="tree"] ul,
+[role="group"] {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.select-none { user-select: none; -webkit-user-select: none; }
 .pointer-events-none { pointer-events: none; }
+
+/* preflight 补齐:PressDepth 外壳假设 Tailwind 的 button 重置(无 UA 默认
+   padding 1px 6px / margin),否则外壳比面宽、底座横向错位 */
+button.group.select-none {
+  margin: 0;
+  padding: 0;
+}
+/* Filter Grid 芯片用 px-3,specificity 需压过上面的 padding:0 */
+button.group.inline-grid.select-none {
+  padding-inline: 12px;
+}
+
+ul.overscroll-contain {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
 .cursor-default { cursor: default; }
 .cursor-grab { cursor: grab; }
 .cursor-grabbing { cursor: grabbing; }
@@ -276,3 +363,159 @@
 }
 .from-white { --from-white: 1; }
 .to-transparent { --to-transparent: 1; }
+.to-white\/0 { --tw-gradient-to: transparent; }
+
+/* ---- 第二批组件补齐(Tree/Tooltip/Popover/Accordion/Lightbox/…) ---- */
+.inline-block { display: inline-block; }
+.isolate { isolation: isolate; }
+.items-baseline { align-items: baseline; }
+.justify-between { justify-content: space-between; }
+.flex-\[1_0_auto\] { flex: 1 0 auto; }
+.space-y-1\.5 > * + * { margin-top: 6px; }
+.divide-y > :not(:first-child) { border-top-width: 1px; border-top-style: solid; }
+.divide-stone-200 > :not(:first-child) { border-top-color: var(--line); }
+.m-0 { margin: 0; }
+.ml-2 { margin-left: 8px; }
+.ml-\[13px\] { margin-left: 13px; }
+.mt-2\.5 { margin-top: 10px; }
+.list-none { list-style: none; }
+.h-7 { height: 28px; }
+.h-8 { height: 32px; }
+.h-10 { height: 40px; }
+.h-\[4px\] { height: 4px; }
+.h-\[8px\] { height: 8px; }
+.h-\[24px\] { height: 24px; }
+.h-\[32px\] { height: 32px; }
+.w-0 { width: 0; }
+.w-8 { width: 32px; }
+.w-10 { width: 40px; }
+.w-2\/5 { width: 40%; }
+.w-max { width: max-content; }
+.max-h-full { max-height: 100%; }
+.max-h-\[216px\] { max-height: 216px; }
+.max-w-full { max-width: 100%; }
+.max-w-\[65\%\] { max-width: 65%; }
+.max-w-\[120px\] { max-width: 120px; }
+.max-w-\[220px\] { max-width: 220px; }
+.min-w-\[224px\] { min-width: 224px; }
+.size-3 { width: 12px; height: 12px; }
+.size-4 { width: 16px; height: 16px; }
+.size-8 { width: 32px; height: 32px; }
+.size-\[15px\] { width: 15px; height: 15px; }
+.size-\[18px\] { width: 18px; height: 18px; }
+.size-\[22px\] { width: 22px; height: 22px; }
+.p-0 { padding: 0; }
+.p-1 { padding: 4px; }
+.p-3 { padding: 12px; }
+.px-2 { padding-inline: 8px; }
+.py-1 { padding-block: 4px; }
+.py-1\.5 { padding-block: 6px; }
+.py-2\.5 { padding-block: 10px; }
+.pt-3 { padding-top: 12px; }
+.pb-3\.5 { padding-bottom: 14px; }
+.pl-2 { padding-left: 8px; }
+.pl-\[7px\] { padding-left: 7px; }
+.pl-\[26px\] { padding-left: 26px; }
+.top-2 { top: 8px; }
+.bottom-2 { bottom: 8px; }
+.left-1\/2 { left: 50%; }
+.right-\[7px\] { right: 7px; }
+.top-\[calc\(100\%\+6px\)\] { top: calc(100% + 6px); }
+.overflow-x-auto { overflow-x: auto; }
+.object-contain { object-fit: contain; }
+.align-baseline { vertical-align: baseline; }
+.leading-9 { line-height: 2.25rem; }
+.leading-snug { line-height: 1.375; }
+.text-\[11px\] { font-size: 11px; }
+.text-\[12px\] { font-size: 12px; }
+.text-stone-900 { color: var(--ink); }
+.text-stone-500\/70 { color: color-mix(in srgb, var(--mut) 70%, transparent); }
+.text-white { color: #fff; }
+.text-\[\#4568FF\] { color: var(--acc); }
+.bg-stone-50 { background-color: color-mix(in srgb, var(--ink) 3%, transparent); }
+.bg-stone-100\/80 { background-color: color-mix(in srgb, var(--soft) 80%, transparent); }
+.bg-stone-200\/60 { background-color: color-mix(in srgb, var(--ink) 12%, transparent); }
+.bg-stone-950\/80 { background-color: rgba(32, 30, 29, 0.8); }
+.bg-\[\#4568FF\] { background-color: var(--acc); }
+.border-0 { border-width: 0; }
+.border-2 { border-width: 2px; border-style: solid; }
+.border-stone-200\/80 { border-color: color-mix(in srgb, var(--line) 80%, transparent); }
+.rounded-\[8px\] { border-radius: 8px; }
+.rounded-\[10px\] { border-radius: 10px; }
+.rounded-\[13px\] { border-radius: 13px; }
+.opacity-50 { opacity: 0.5; }
+.opacity-70 { opacity: 0.7; }
+.pointer-events-auto { pointer-events: auto; }
+.cursor-pointer { cursor: pointer; }
+.cursor-not-allowed { cursor: not-allowed; }
+.cursor-zoom-in { cursor: zoom-in; }
+.rotate-180 { transform: rotate(180deg); }
+.group { }
+.hover\:bg-stone-100\/60:hover { background-color: color-mix(in srgb, var(--soft) 60%, transparent); }
+.hover\:border-stone-300:hover { border-color: color-mix(in srgb, var(--ink) 22%, transparent); }
+.group:hover .group-hover\:text-stone-700 { color: var(--ink); }
+.group:focus-visible .group-focus-visible\:border-\[\#4568FF\] { border-color: var(--acc); }
+.focus-visible\:shadow-\[0_1px_3px_rgba\(28\,25\,23\,0\.18\)\]:focus-visible {
+  box-shadow: 0 1px 3px rgba(32, 30, 29, 0.18);
+}
+.focus-visible\:border-stone-400:focus-visible { border-color: color-mix(in srgb, var(--ink) 35%, transparent); }
+.focus-visible\:outline-2:focus-visible { outline-width: 2px; outline-style: solid; }
+.focus-visible\:-outline-offset-2:focus-visible { outline-offset: -2px; }
+.focus-visible\:ring-stone-400:focus-visible { box-shadow: 0 0 0 2px color-mix(in srgb, var(--ink) 28%, transparent); }
+.shadow-\[0_1px_2px_rgba\(28\,25\,23\,0\.06\)\,0_16px_36px_-18px_rgba\(28\,25\,23\,0\.5\)\] {
+  box-shadow: 0 1px 2px rgba(32, 30, 29, 0.06), 0 16px 36px -18px rgba(32, 30, 29, 0.5);
+}
+.shadow-\[0_1px_2px_rgba\(28\,25\,23\,0\.06\)\,0_6px_16px_-12px_rgba\(28\,25\,23\,0\.35\)\] {
+  box-shadow: 0 1px 2px rgba(32, 30, 29, 0.06), 0 6px 16px -12px rgba(32, 30, 29, 0.35);
+}
+.shadow-\[0_1px_2px_rgba\(28\,25\,23\,0\.08\)\,0_6px_14px_-10px_rgba\(28\,25\,23\,0\.45\)\] {
+  box-shadow: 0 1px 2px rgba(32, 30, 29, 0.08), 0 6px 14px -10px rgba(32, 30, 29, 0.45);
+}
+.shadow-\[0_18px_40px_-24px_rgba\(28\,25\,23\,0\.5\)\] {
+  box-shadow: 0 18px 40px -24px rgba(32, 30, 29, 0.5);
+}
+.shadow-\[inset_0_1\.5px_0_rgba\(255\,255\,255\,0\.95\)\,0_1px_2px_rgba\(28\,25\,23\,0\.07\)\,0_16px_36px_-18px_rgba\(28\,25\,23\,0\.5\)\] {
+  box-shadow:
+    inset 0 1.5px 0 rgba(255, 255, 255, 0.95),
+    0 1px 2px rgba(32, 30, 29, 0.07),
+    0 16px 36px -18px rgba(32, 30, 29, 0.5);
+}
+.shadow-\[inset_0_1px_0_rgba\(255\,255\,255\,0\.35\)\] {
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.35);
+}
+.shadow-\[inset_0_1px_2px_rgba\(28\,25\,23\,0\.05\)\] {
+  box-shadow: inset 0 1px 2px rgba(32, 30, 29, 0.05);
+}
+.shadow-\[inset_0_1px_2px_rgba\(28\,25\,23\,0\.1\)\] {
+  box-shadow: inset 0 1px 2px rgba(32, 30, 29, 0.1);
+}
+.shadow-\[0_1px_2px_rgba\(28\,25\,23\,0\.08\)\,0_14px_28px_-16px_rgba\(28\,25\,23\,0\.5\)\] {
+  box-shadow: 0 1px 2px rgba(32, 30, 29, 0.08), 0 14px 28px -16px rgba(32, 30, 29, 0.5);
+}
+.focus-visible\:shadow-\[0_2px_4px_rgba\(28\,25\,23\,0\.1\)\,0_12px_22px_-12px_rgba\(69\,104\,255\,0\.55\)\]:focus-visible {
+  box-shadow: 0 2px 4px rgba(32, 30, 29, 0.1), 0 12px 22px -12px rgba(236, 48, 19, 0.55);
+}
+.transition-\[border-color\,box-shadow\] {
+  transition-property: border-color, box-shadow;
+  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+  transition-duration: 150ms;
+}
+.transition-\[border-color\,color\,box-shadow\] {
+  transition-property: border-color, color, box-shadow;
+  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+  transition-duration: 150ms;
+}
+.transition-\[background-color\,border-color\,box-shadow\] {
+  transition-property: background-color, border-color, box-shadow;
+  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+  transition-duration: 150ms;
+}
+.transition-\[box-shadow\,border-color\] {
+  transition-property: box-shadow, border-color;
+  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+  transition-duration: 150ms;
+}
+@media (min-width: 640px) {
+  .sm\:p-4 { padding: 16px; }
+  .sm\:p-14 { padding: 56px; }
+}

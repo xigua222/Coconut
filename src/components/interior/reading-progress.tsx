@@ -5,10 +5,10 @@
  */
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useLayoutEffect, useRef, useState } from "react";
 import { motion, useReducedMotion } from "motion/react";
+import { RollingNumber } from "./rolling-number";
 
-const FILL = { type: "spring", stiffness: 210, damping: 34, mass: 0.9 } as const;
 const CROSSFADE = { type: "spring", stiffness: 260, damping: 34, mass: 0.8 } as const;
 const EASE = [0.23, 1, 0.32, 1] as const;
 const DRAW = { duration: 0.3, ease: EASE, delay: 0.08 } as const;
@@ -75,10 +75,14 @@ export function useReadingProgress({
     setStep((prev) => (prev === next ? prev : next));
   }, [scroller, target, steps]);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     const scrollEl = scroller?.current ?? null;
     const targetEl = target?.current ?? null;
-    const source: EventTarget = scrollEl ?? window;
+    // 调用方传入 scroller 时只监听该容器;coconut 的 body overflow:hidden,
+    // 降级到 window 会导致进度永远为 0
+    const source: EventTarget | null =
+      scroller != null ? scrollEl : scrollEl ?? window;
+    if (!source) return;
 
     const schedule = () => {
       if (frame.current) return;
@@ -124,6 +128,8 @@ export function useReadingProgress({
 }
 
 export type ReadingProgressProps = UseReadingProgressOptions & {
+  /** 0–1 滚动进度;由外层滚动容器计算后传入(优先于内部 scroller 监听) */
+  value?: number;
   label?: string;
   doneLabel?: string;
   className?: string;
@@ -132,6 +138,7 @@ export type ReadingProgressProps = UseReadingProgressOptions & {
 export function ReadingProgress({
   target,
   scroller,
+  value,
   steps = 24,
   words = 0,
   wordsPerMinute = 220,
@@ -139,22 +146,35 @@ export function ReadingProgress({
   doneLabel = "End",
   className = "",
 }: ReadingProgressProps) {
-  const { step, percent, minutesLeft, totalMinutes, complete } =
-    useReadingProgress({ target, scroller, steps, words, wordsPerMinute });
+  const hooked = useReadingProgress({
+    target,
+    scroller: value != null ? undefined : scroller,
+    steps,
+    words,
+    wordsPerMinute,
+  });
+
+  const progress = value != null ? clamp01(value) : hooked.progress;
+  const step = Math.round(progress * steps);
+  const percent = Math.round(progress * 100);
+  const minutesLeft =
+    words > 0 ? Math.ceil(((1 - progress) * words) / wordsPerMinute) : 0;
+  const complete = step >= steps;
 
   const reduced = useReducedMotion();
-  const fillTransition = reduced ? INSTANT : FILL;
   const fadeTransition = reduced ? INSTANT : CROSSFADE;
 
   const estimate = words > 0;
-  const readout = `${minutesLeft} min left`;
-  const finish = `${doneLabel} · ${totalMinutes} min`;
+  const readout = `还剩 ${minutesLeft} 分钟`;
+  const finish = doneLabel;
   const valueText = estimate
-    ? `${percent}% read, ${readout}`
-    : `${percent}% read`;
+    ? complete
+      ? `${doneLabel},已读 ${percent}%`
+      : `已读 ${percent}%,${readout}`
+    : `已读 ${percent}%`;
 
   return (
-    <div className={`flex items-center gap-3 ${className}`}>
+    <div className={`reading-progress flex items-center gap-2 ${className}`}>
       <div
         role="progressbar"
         aria-label={label}
@@ -162,14 +182,11 @@ export function ReadingProgress({
         aria-valuemax={steps}
         aria-valuenow={step}
         aria-valuetext={valueText}
-        className="min-w-0 flex-1 rounded-[4px] bg-stone-100 p-[2px] shadow-[inset_0_1px_2px_rgba(28,25,23,0.07)] dark:bg-[#1D1D1A] dark:shadow-[inset_0_1px_2px_rgba(0,0,0,0.45)]"
+        className="reading-progress-track min-w-0 flex-1"
       >
-        <motion.div
-          className="h-[3px] origin-left rounded-[2px] bg-[#4568FF] dark:bg-[#93B0FF]"
-          style={{ width: "100%" }}
-          initial={false}
-          animate={{ scaleX: step / Math.max(1, steps) }}
-          transition={fillTransition}
+        <div
+          className="reading-progress-fill"
+          style={{ width: `${(step / Math.max(1, steps)) * 100}%` }}
         />
       </div>
 
@@ -184,16 +201,16 @@ export function ReadingProgress({
           </span>
           <motion.span
             aria-hidden
-            className="col-start-1 row-start-1 whitespace-nowrap text-stone-500 dark:text-stone-400"
+            className="col-start-1 row-start-1 whitespace-nowrap text-stone-500"
             initial={false}
             animate={{ opacity: complete ? 0 : 1 }}
             transition={fadeTransition}
           >
-            {readout}
+            <RollingNumber value={minutesLeft} prefix="还剩 " suffix=" 分钟" />
           </motion.span>
           <motion.span
             aria-hidden
-            className="col-start-1 row-start-1 flex items-center gap-1 whitespace-nowrap text-stone-700 dark:text-stone-200"
+            className="col-start-1 row-start-1 flex items-center gap-1 whitespace-nowrap text-stone-700"
             initial={false}
             animate={{ opacity: complete ? 1 : 0 }}
             transition={fadeTransition}
@@ -225,7 +242,11 @@ export function ReadingProgress({
             </motion.span>
           </motion.span>
         </div>
-      ) : null}
+      ) : (
+        <span className="shrink-0 font-mono text-[10.5px] tabular-nums text-stone-500">
+          <RollingNumber value={percent} suffix="%" />
+        </span>
+      )}
     </div>
   );
 }

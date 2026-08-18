@@ -7,6 +7,8 @@
 
 import { useCallback, useId, useRef, useState } from "react";
 import { motion, useReducedMotion } from "motion/react";
+import { ChevronDownIcon, CircleHelpIcon, XIcon } from "lucide-animated";
+import { MovingIcon } from "../MovingIcon";
 
 const EASE = [0.23, 1, 0.32, 1] as const;
 const DISCLOSE = { type: "spring", stiffness: 190, damping: 30, mass: 1 } as const;
@@ -79,55 +81,6 @@ export function useCollapsibleBanner({
     restore,
   };
 }
-
-const NOTICE_GLYPH = (
-  <svg width="16" height="16" viewBox="0 0 256 256" fill="none" aria-hidden="true">
-    <circle cx="128" cy="128" r="96" stroke="currentColor" strokeWidth="16" />
-    <polyline
-      points="120 120 128 120 128 176 136 176"
-      stroke="currentColor"
-      strokeWidth="16"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    />
-    <circle cx="124" cy="84" r="12" fill="currentColor" />
-  </svg>
-);
-
-const CARET_DOWN = (
-  <svg width="14" height="14" viewBox="0 0 256 256" fill="none" aria-hidden="true">
-    <polyline
-      points="208 96 128 176 48 96"
-      stroke="currentColor"
-      strokeWidth="16"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    />
-  </svg>
-);
-
-const CLOSE = (
-  <svg width="13" height="13" viewBox="0 0 256 256" fill="none" aria-hidden="true">
-    <line
-      x1="200"
-      y1="56"
-      x2="56"
-      y2="200"
-      stroke="currentColor"
-      strokeWidth="16"
-      strokeLinecap="round"
-    />
-    <line
-      x1="200"
-      y1="200"
-      x2="56"
-      y2="56"
-      stroke="currentColor"
-      strokeWidth="16"
-      strokeLinecap="round"
-    />
-  </svg>
-);
 
 export type CollapsibleBannerProps = {
   title: React.ReactNode;
@@ -206,7 +159,7 @@ export function CollapsibleBanner({
               aria-hidden="true"
               className="grid size-[26px] shrink-0 place-items-center rounded-[7px] bg-stone-100/70 text-stone-500 shadow-[inset_0_1px_2px_rgba(28,25,23,0.06)] dark:bg-[#252522] dark:text-stone-400 dark:shadow-[inset_0_1px_2px_rgba(0,0,0,0.4)]"
             >
-              {icon ?? NOTICE_GLYPH}
+              {icon ?? <MovingIcon icon={CircleHelpIcon} size={16} />}
             </span>
 
             {hasBody ? (
@@ -235,7 +188,7 @@ export function CollapsibleBanner({
                   animate={{ rotate: open ? 180 : 0 }}
                   transition={reduced ? INSTANT : NUDGE}
                 >
-                  {CARET_DOWN}
+                  <MovingIcon icon={ChevronDownIcon} size={14} />
                 </motion.span>
               </button>
             ) : (
@@ -254,7 +207,7 @@ export function CollapsibleBanner({
                 aria-label={dismissLabel}
                 className="grid size-[26px] shrink-0 place-items-center rounded-[7px] text-stone-400 transition-colors duration-150 hover:bg-stone-100 hover:text-stone-700 focus-visible:outline-none focus-visible:bg-[#4568FF]/[0.06] focus-visible:shadow-[inset_0_0_0_1px_#4568FF] dark:text-stone-500 dark:hover:bg-white/10 dark:hover:text-stone-100 dark:focus-visible:bg-[#93B0FF]/[0.1] dark:focus-visible:shadow-[inset_0_0_0_1px_#93B0FF]"
               >
-                {CLOSE}
+                <MovingIcon icon={XIcon} size={13} fill />
               </button>
             ) : null}
           </div>

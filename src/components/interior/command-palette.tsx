@@ -8,18 +8,24 @@
 import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
+import { SearchIcon } from "lucide-animated";
+import { MovingIcon } from "../MovingIcon";
+import { RollingNumber } from "./rolling-number";
 
 const CELL = { type: "spring", stiffness: 520, damping: 34, mass: 0.45 } as const;
 const CROSSFADE = { type: "spring", stiffness: 260, damping: 34, mass: 0.8 } as const;
 const BOUNDARY = /[\s\-_/.:]/;
 const ROW = 36;
-const GAP = 2;
-const PAD = 5;
+const ROW_SUB = 68;
+const GAP = 4;
+const PAD = 6;
 
 export type CommandItem = {
   id: string;
   label: string;
   hint?: string;
+  /** 第二行摘要(搜索命中片段) */
+  sub?: string;
   keywords?: string;
   shortcut?: string[];
 };
@@ -28,6 +34,13 @@ export type UseCommandPaletteOptions = {
   items: CommandItem[];
   onSelect: (item: CommandItem) => void;
   onDismiss?: () => void;
+  /** 无查询词时不列出全部条目,留给空状态 */
+  idleEmpty?: boolean;
+  /** 条目已在外部排好序,不再按 label 过滤 */
+  skipFilter?: boolean;
+  /** 默认不高亮第一项;回车只打开用户方向键/鼠标选过的条目(避开输入法确认) */
+  highlightFirst?: boolean;
+  onQueryChange?: (query: string) => void;
 };
 
 function scoreOne(text: string, query: string): number {
@@ -72,6 +85,10 @@ export function useCommandPalette({
   items,
   onSelect,
   onDismiss,
+  idleEmpty = false,
+  skipFilter = false,
+  highlightFirst = true,
+  onQueryChange,
 }: UseCommandPaletteOptions) {
   const [query, setQuery] = useState("");
   const [pinned, setPinned] = useState<string | null>(null);
@@ -84,11 +101,24 @@ export function useCommandPalette({
   const dismiss = useRef(onDismiss);
   dismiss.current = onDismiss;
 
-  const results = useMemo(() => rank(items, query), [items, query]);
+  const results = useMemo(() => {
+    if (idleEmpty && !query.trim()) return [];
+    if (skipFilter) return items;
+    return rank(items, query);
+  }, [idleEmpty, items, query, skipFilter]);
+
+  const queryNotify = useRef(onQueryChange);
+  queryNotify.current = onQueryChange;
+  useEffect(() => {
+    queryNotify.current?.(query);
+    setPinned(null);
+  }, [query]);
 
   const activeId = results.some((r) => r.id === pinned)
     ? pinned
-    : (results[0]?.id ?? null);
+    : highlightFirst
+      ? (results[0]?.id ?? null)
+      : null;
   const activeIndex = results.findIndex((r) => r.id === activeId);
 
   useEffect(() => {
@@ -133,12 +163,15 @@ export function useCommandPalette({
   };
 
   const onKeyDown = (event: React.KeyboardEvent) => {
+    if (event.nativeEvent.isComposing || event.keyCode === 229) return;
     if (event.key === "ArrowDown") {
       event.preventDefault();
-      move(1);
+      if (!highlightFirst && pinned == null) jump(0);
+      else move(1);
     } else if (event.key === "ArrowUp") {
       event.preventDefault();
-      move(-1);
+      if (!highlightFirst && pinned == null) jump(results.length - 1);
+      else move(-1);
     } else if (event.key === "Home") {
       event.preventDefault();
       jump(0);
@@ -146,6 +179,7 @@ export function useCommandPalette({
       event.preventDefault();
       jump(results.length - 1);
     } else if (event.key === "Enter") {
+      if (!highlightFirst && pinned == null) return;
       event.preventDefault();
       run();
     } else if (event.key === "Escape") {
@@ -181,6 +215,11 @@ export type CommandPaletteProps = {
   maxRows?: number;
   autoFocus?: boolean;
   className?: string;
+  showCount?: boolean;
+  idleLabel?: string;
+  skipFilter?: boolean;
+  highlightFirst?: boolean;
+  onQueryChange?: (query: string) => void;
 };
 
 export function CommandPalette({
@@ -194,6 +233,11 @@ export function CommandPalette({
   maxRows = 6,
   autoFocus = false,
   className = "",
+  showCount = true,
+  idleLabel,
+  skipFilter = false,
+  highlightFirst = true,
+  onQueryChange,
 }: CommandPaletteProps) {
   const uid = useId();
   const reduced = useReducedMotion();
@@ -210,15 +254,30 @@ export function CommandPalette({
     onKeyDown,
     pointerActivate,
     run,
-  } = useCommandPalette({ items, onSelect, onDismiss });
+  } = useCommandPalette({
+    items,
+    onSelect,
+    onDismiss,
+    idleEmpty: Boolean(idleLabel),
+    skipFilter,
+    highlightFirst,
+    onQueryChange,
+  });
 
-  const rows = Math.max(1, Math.min(maxRows, items.length));
-  const height = PAD * 2 + rows * ROW + (rows - 1) * GAP;
+  const rowH = skipFilter || items.some((item) => item.sub) ? ROW_SUB : ROW;
+  const rows = Math.max(1, maxRows);
+  const height = PAD * 2 + rows * rowH + (rows - 1) * GAP;
   const count = results.length;
+  const vacant = !query.trim() && idleLabel ? idleLabel : emptyLabel;
 
   useEffect(() => {
-    if (autoFocus) inputRef.current?.focus({ preventScroll: true });
-  }, [autoFocus]);
+    if (open === false) return;
+    if (!autoFocus && open !== true) return;
+    const id = requestAnimationFrame(() => {
+      inputRef.current?.focus({ preventScroll: true });
+    });
+    return () => cancelAnimationFrame(id);
+  }, [autoFocus, open]);
 
   useEffect(() => {
     if (open) setQuery("");
@@ -248,19 +307,8 @@ export function CommandPalette({
           : ""
       } ${className}`}
     >
-      <div className="flex h-11 items-center gap-2.5 border-b border-stone-200 px-3 dark:border-white/[0.16]">
-        <svg
-          viewBox="0 0 16 16"
-          className="size-[14px] shrink-0 text-stone-500 dark:text-stone-400"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="1.4"
-          strokeLinecap="round"
-          aria-hidden
-        >
-          <circle cx="7" cy="7" r="4.25" />
-          <path d="M10.2 10.2 13.5 13.5" />
-        </svg>
+      <div className="palette-field flex h-11 items-center gap-2.5 border-b border-stone-200 px-3 dark:border-white/[0.16]">
+        <MovingIcon icon={SearchIcon} size={14} className="text-stone-500" />
         <input
           ref={inputRef}
           type="text"
@@ -278,9 +326,11 @@ export function CommandPalette({
           onKeyDown={onKeyDown}
           className="h-full min-w-0 flex-1 bg-transparent text-[13.5px] text-stone-700 outline-none placeholder:text-stone-400 dark:text-stone-200 dark:placeholder:text-stone-500"
         />
-        <span className="min-w-[3ch] shrink-0 text-right font-mono text-[9.5px] tabular-nums text-stone-500 dark:text-stone-400">
-          {count}
-        </span>
+        {showCount ? (
+          <span className="min-w-[3ch] shrink-0 text-right font-mono text-[9.5px] tabular-nums text-stone-500 dark:text-stone-400">
+            <RollingNumber value={count} />
+          </span>
+        ) : null}
       </div>
       <div className="relative" style={{ height }}>
         <ul
@@ -290,7 +340,7 @@ export function CommandPalette({
           role="listbox"
           aria-label={label}
           onMouseDown={(e) => e.preventDefault()}
-          className="absolute inset-0 flex flex-col gap-[2px] overflow-y-auto overscroll-contain p-[5px] [scrollbar-gutter:stable]"
+          className="absolute inset-0 flex flex-col gap-1 overflow-y-auto overscroll-contain p-1.5 [scrollbar-gutter:stable]"
         >
           {results.map((item) => {
             const active = item.id === activeId;
@@ -305,7 +355,9 @@ export function CommandPalette({
                 transition={spring}
                 onPointerMove={(e) => pointerActivate(item.id, e)}
                 onClick={() => run(item)}
-                className="relative flex h-9 shrink-0 cursor-default items-center rounded-[9px] px-2.5"
+                className={`relative flex shrink-0 cursor-default items-center rounded-[10px] px-3 ${
+                  item.sub ? "h-[68px] py-2.5" : "h-9"
+                }`}
               >
                 <motion.span
                   aria-hidden
@@ -315,12 +367,19 @@ export function CommandPalette({
                   className="absolute inset-0 rounded-[9px] bg-stone-100 dark:bg-white/10"
                 />
                 <span className="relative flex min-w-0 flex-1 items-center gap-2.5">
-                  <span className="truncate text-[13px] font-medium text-stone-700 dark:text-stone-200">
-                    {item.label}
+                  <span className="flex min-w-0 flex-1 flex-col gap-0.5">
+                    <span className="truncate text-[13.5px] font-medium leading-5 text-stone-700 dark:text-stone-200">
+                      {item.label}
+                    </span>
+                    {item.sub ? (
+                      <span className="line-clamp-2 text-[12px] leading-[1.35] text-stone-500 dark:text-stone-400">
+                        {item.sub}
+                      </span>
+                    ) : null}
                   </span>
 
                   {item.hint ? (
-                    <span className="hidden shrink-0 text-[11.5px] text-stone-500 sm:inline dark:text-stone-400">
+                    <span className="hidden max-w-[40%] shrink-0 truncate text-[11.5px] text-stone-500 sm:inline dark:text-stone-400">
                       {item.hint}
                     </span>
                   ) : null}
@@ -350,7 +409,7 @@ export function CommandPalette({
             transition={reduced ? { duration: 0 } : CROSSFADE}
             className="pointer-events-none absolute inset-0 flex items-center justify-center px-3 text-center text-[12.5px] text-stone-500 dark:text-stone-400"
           >
-            {emptyLabel}
+            {vacant}
           </motion.p>
         ) : null}
       </div>

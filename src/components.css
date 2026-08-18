@@ -2,6 +2,21 @@
    原 Svelte 每个组件自带 <style>,React 无 scoped 概念,统一收在这里;
    所有选择器加根类前缀,避免全局碰撞。token 仍来自 app.css。 */
 
+/* lucide-animated 外层是 div,内层才是 svg */
+.mi-icon {
+  display: grid;
+  place-items: center;
+  flex: none;
+  line-height: 0;
+}
+.mi-icon.fill {
+  width: 100%;
+  height: 100%;
+}
+.mi-icon svg {
+  display: block;
+}
+
 /* --- StatusBar --- */
 .statusbar {
   flex: none;
@@ -22,11 +37,11 @@
 .statusbar .group {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 12px;
 }
 
-.statusbar .sep {
-  opacity: 0.45;
+.statusbar .item {
+  font-variant-numeric: tabular-nums;
 }
 
 .statusbar .item.warn {
@@ -37,11 +52,150 @@
   color: var(--acc);
 }
 
+/* --- 数字变动:transitions.dev「Number pop-in」---
+   组件只给「变化的那几位」挂 .is-animating,靠 React key 重挂载重播;
+   --digit-i 是本次变化里的第几位,用来错开。
+   贴入的示例用法(整组 .is-animating + data-stagger)同样有效。 */
+:root {
+  --digit-dur: 500ms;
+  --digit-distance: 8px;
+  --digit-stagger: 70ms;
+  --digit-blur: 2px;
+  --digit-ease: cubic-bezier(0.34, 1.45, 0.64, 1);
+  --digit-dir-x: 0;
+  --digit-dir-y: 1;
+}
+
+@keyframes t-digit-pop-in {
+  0% {
+    transform: translate(
+      calc(var(--digit-distance) * var(--digit-dir-x)),
+      calc(var(--digit-distance) * var(--digit-dir-y))
+    );
+    opacity: 0;
+    filter: blur(var(--digit-blur));
+  }
+  100% {
+    transform: translate(0, 0);
+    opacity: 1;
+    filter: blur(0);
+  }
+}
+
+.t-digit-group {
+  display: inline-flex;
+  align-items: baseline;
+  font: inherit;
+  color: inherit;
+  font-variant-numeric: tabular-nums;
+}
+
+.t-digit-affix {
+  white-space: pre;
+}
+
+.t-digit {
+  display: inline-block;
+  will-change: transform, opacity, filter;
+}
+
+.t-digit-group.is-animating .t-digit,
+.t-digit-group .t-digit.is-animating {
+  animation: t-digit-pop-in var(--digit-dur) var(--digit-ease) both;
+  animation-delay: calc(var(--digit-stagger) * var(--digit-i, 0));
+}
+
+.t-digit-group.is-animating .t-digit[data-stagger="1"] {
+  animation-delay: var(--digit-stagger);
+}
+
+.t-digit-group.is-animating .t-digit[data-stagger="2"] {
+  animation-delay: calc(var(--digit-stagger) * 2);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .t-digit-group .t-digit {
+    animation: none !important;
+  }
+}
+
+/* --- 勾选框:transitions.dev「Checkbox check」---
+   盒子先填色,勾线再靠 stroke-dashoffset 画出来。--check-len 必须等于路径的
+   getTotalLength() 向上取整,否则会画过头或画不满;当前路径实测 ≈14.39 → 15。
+   取消勾选走单独的短 transition,画到一半反悔也能顺着退回去。
+   状态钩子三选一:自持组件用 aria-checked;外层容器用 .is-checked;
+   .checked > .t-check 是给 Milkdown 任务列表用的 —— 它的 .label 自带
+   checked/unchecked 类,markup 由我们注入,勾不到 aria 属性。 */
+:root {
+  --check-box: 150ms;
+  --check-draw: 350ms;
+  --check-delay: 0ms;
+  --check-uncheck: 150ms;
+  --check-ease: cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.t-check {
+  --check-len: 15;
+  display: inline-grid;
+  place-items: center;
+  flex: none;
+  width: var(--check-size, 15px);
+  height: var(--check-size, 15px);
+  padding: 0;
+  border: none;
+  border-radius: calc(var(--check-size, 15px) * 0.3);
+  background: transparent;
+  box-shadow: inset 0 0 0 1.5px var(--line2);
+  transition:
+    background var(--check-box) var(--check-ease),
+    box-shadow var(--check-box) var(--check-ease);
+}
+
+.t-check svg {
+  display: block;
+  width: 62%;
+  height: 62%;
+  overflow: visible;
+}
+
+.t-check svg path {
+  fill: none;
+  stroke: #fff;
+  stroke-width: 1.7;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-dasharray: var(--check-len, 15);
+  stroke-dashoffset: var(--check-len, 15);
+  transition: stroke-dashoffset var(--check-uncheck) var(--check-ease);
+}
+
+.t-check[aria-checked="true"],
+.is-checked .t-check,
+.checked > .t-check {
+  background: var(--acc);
+  box-shadow: inset 0 0 0 1.5px var(--acc);
+}
+
+.t-check[aria-checked="true"] svg path,
+.is-checked .t-check svg path,
+.checked > .t-check svg path {
+  stroke-dashoffset: 0;
+  transition: stroke-dashoffset var(--check-draw) var(--check-ease) var(--check-delay);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .t-check,
+  .t-check svg path {
+    transition: none !important;
+  }
+}
+
 /* --- TocPanel --- */
 .toc {
   flex: none;
+  align-self: stretch;
+  min-height: 0;
   overflow: hidden;
-  border-left: 1px solid var(--line);
   transition: width var(--dur-move) var(--ease-out);
 }
 
@@ -51,68 +205,89 @@
 }
 
 .toc .inner {
-  width: 232px;
+  width: 252px;
   box-sizing: border-box;
-  padding: 30px 18px;
+  padding: 14px 0 16px;
   position: relative;
   height: 100%;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
   transition: opacity var(--dur-move) var(--ease-out);
 }
 
-.toc .label {
-  height: 13px;
-  font-size: 10px;
-  letter-spacing: 0.16em;
-  color: var(--mut);
-  font-weight: 800;
-  margin: 0 0 12px;
-  line-height: 13px;
+.toc .toc-reading-progress {
+  flex: none;
+  margin: 0 14px 10px;
 }
 
-.toc .bar {
-  position: absolute;
-  left: 0;
-  width: 2.5px;
-  height: 18px;
+.toc .reading-progress {
+  width: 100%;
+  gap: 8px;
+}
+
+.toc .reading-progress-track {
+  flex: 1;
+  min-width: 0;
+  padding: 2px;
+  border-radius: 4px;
+  background: var(--soft);
+  box-shadow: inset 0 1px 2px rgba(32, 30, 29, 0.07);
+}
+
+.toc .reading-progress-fill {
+  height: 4px;
   border-radius: 2px;
   background: var(--acc);
-  transition: top 0.3s var(--ease-out), opacity 0.25s ease;
+  transition: width var(--dur-quick) var(--ease-out);
 }
 
 .toc nav {
   position: relative;
   display: flex;
   flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  overflow-x: hidden;
   overflow-y: auto;
-  max-height: calc(100% - 50px);
+  overscroll-behavior: contain;
+  padding: 0 10px 8px 8px;
+  scrollbar-gutter: stable;
 }
 
 .toc nav button {
-  display: flex;
-  align-items: center;
-  height: 32px;
-  padding: 0 10px 0 14px;
+  display: block;
+  flex: none;
+  width: 100%;
+  box-sizing: border-box;
+  margin: 0;
+  padding: 7px 10px 7px 12px;
   border: none;
+  border-left: 2px solid transparent;
+  border-radius: 0 8px 8px 0;
   background: transparent;
   cursor: pointer;
   font-family: inherit;
-  font-size: 12.5px;
+  font-size: 13px;
+  line-height: 1.45;
   text-align: left;
   color: var(--mut);
   font-weight: 400;
-  transition: color 0.3s ease;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  white-space: normal;
+  overflow-wrap: break-word;
+  word-break: break-word;
 }
 
 .toc nav button:hover {
   color: var(--ink);
+  background: color-mix(in srgb, var(--ink) 4%, transparent);
 }
 
 .toc nav button.active {
   color: var(--ink);
-  font-weight: 700;
+  font-weight: 600;
+  border-left-color: var(--acc);
+  background: color-mix(in srgb, var(--acc) 8%, transparent);
 }
 
 .toc .empty {
@@ -137,6 +312,9 @@
 }
 
 .banner.conflict .text {
+  display: flex;
+  align-items: center;
+  gap: 8px;
   color: var(--acc);
   white-space: nowrap;
 }
@@ -170,105 +348,62 @@
 }
 
 .welcome h1 {
+  display: flex;
+  align-items: center;
+  gap: 10px;
   font-weight: 800;
   font-size: 34px;
   letter-spacing: -0.02em;
   line-height: 1.25;
-  margin: 0 0 10px;
+  margin: 0 0 26px;
 }
 
-.welcome .sub {
-  margin: 0 0 26px;
-  font-size: 15px;
-  line-height: 1.9;
-  color: var(--mut);
+.welcome h1 .welcome-reveal {
+  color: inherit;
+  font: inherit;
+}
+
+.welcome-emoji {
+  width: 42px;
+  height: 42px;
+  flex: none;
+  display: block;
+  pointer-events: none;
+}
+
+.welcome-emoji svg {
+  display: block;
 }
 
 .welcome .actions {
   display: flex;
-  gap: 10px;
-  margin-bottom: 44px;
+  flex-wrap: wrap;
+  gap: 18px;
+  margin-bottom: 0;
 }
 
-.welcome .btn {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 10px 18px;
-  border-radius: calc(var(--r) * 0.68);
-  background: transparent;
-  border: 1px solid var(--line2);
-  color: var(--ink);
-  font-weight: 800;
-  font-size: 13.5px;
-  cursor: pointer;
-  transition: background-color var(--dur-quick) ease, transform var(--dur-quick) var(--ease-out);
+.welcome-rule {
+  margin: 22px 0 24px;
+  border: none;
+  border-top: 1px solid var(--line);
 }
 
-.welcome .btn:hover {
-  background: color-mix(in srgb, var(--ink) 5%, transparent);
-  transform: translateY(-2px);
-}
-
-.welcome .btn.primary {
-  background: var(--acc);
-  border-color: transparent;
-  color: #fff;
-}
-
-.welcome .btn.primary:hover {
-  box-shadow: var(--shadow-md);
-}
-
-.welcome .hr {
-  height: 2px;
-  background: var(--line2);
-  margin-bottom: 20px;
-}
-
-.welcome .recent-label {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  font-size: 10px;
-  letter-spacing: 0.16em;
-  color: var(--mut);
-  font-weight: 800;
-  margin-bottom: 12px;
-}
-
-.welcome .clear {
-  font-size: 10.5px;
-  color: var(--acc);
-  letter-spacing: 0;
-}
-
-.welcome .cards {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 10px;
-  margin-bottom: 28px;
-}
-
-.welcome .card {
+.welcome .fg-item {
   display: flex;
   flex-direction: column;
+  justify-content: center;
   gap: 5px;
-  align-items: flex-start;
-  padding: 14px;
-  border: 1px solid var(--line);
-  border-radius: var(--r-card);
-  background: var(--soft);
+  width: 100%;
+  min-height: 52px;
+  height: 100%;
+  margin: 0;
+  padding: 2px 2px 4px;
+  border: none;
+  background: transparent;
   cursor: pointer;
   font-family: inherit;
   text-align: left;
   color: var(--ink);
-  transition: transform 0.3s var(--ease-out), box-shadow 0.3s ease, background-color 0.3s ease;
-}
-
-.welcome .card:hover {
-  transform: translateY(-3px);
-  box-shadow: var(--shadow-md);
 }
 
 .welcome .card-name {
@@ -289,69 +424,455 @@
   white-space: nowrap;
 }
 
-.welcome .drop-hint {
-  border: 1.5px dashed var(--line2);
-  border-radius: var(--r-card);
-  padding: 18px;
-  display: flex;
-  align-items: center;
-  gap: 10px;
+/* --- 最近打开(列表标签) --- */
+.library {
+  max-width: 920px;
+  margin: 0 auto;
+  padding: 48px 40px 88px;
+}
+
+.library h1 {
+  margin: 0 0 22px;
+  font-weight: 800;
+  font-size: 28px;
+  letter-spacing: -0.02em;
+}
+
+.library-empty {
+  margin: 0;
+  font-size: 13px;
   color: var(--mut);
 }
 
-.welcome .drop-hint span {
-  font-family: ui-monospace, Menlo, monospace;
-  font-size: 11px;
+.library-card {
+  overflow: auto;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--panel) 70%, transparent);
 }
 
-/* --- TopBar --- */
+.library-table {
+  width: 100%;
+  min-width: 560px;
+  table-layout: fixed;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.library-table th {
+  padding: 9px 12px;
+  text-align: left;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: var(--mut);
+  border-bottom: 1px solid var(--line);
+}
+
+.library-table th.library-num,
+.library-table td.library-num {
+  width: 108px;
+  text-align: right;
+}
+
+.library-table th.library-time,
+.library-table td.library-time {
+  width: 168px;
+  text-align: right;
+}
+
+.library-table td {
+  padding: 11px 12px;
+  border-bottom: 1px solid var(--line);
+  vertical-align: middle;
+}
+
+.library-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.library-table tbody tr {
+  cursor: pointer;
+}
+
+.library-table tbody tr:hover {
+  background: color-mix(in srgb, var(--ink) 4%, transparent);
+}
+
+.library-table tbody tr:focus-visible {
+  outline: 2px solid var(--acc);
+  outline-offset: -2px;
+}
+
+.library-name {
+  width: 22%;
+  font-weight: 600;
+  color: var(--ink);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.library-path {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--mut);
+}
+
+.library-num,
+.library-time {
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+  color: var(--mut);
+}
+
+/* --- Tooltip(portal 层,高于顶栏、低于模态) --- */
+.tooltip-layer {
+  z-index: var(--z-tooltip);
+}
+/* 顶栏尺寸不跟随正文字号:标签/图标钮是窗口 chrome,与红绿灯共处一行,
+   高度必须稳定。三组元素(红绿灯 / 图标钮 / 标签)共用同一条中线。 */
 .topbar {
-  height: 38px;
+  --topbar-act: 26px;
+  --topbar-icon: 15px;
+  --topbar-tab: 28px;
+  height: var(--topbar-h);
   flex: none;
   display: grid;
-  place-items: center;
-  -webkit-app-region: drag;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
   position: relative;
+  z-index: 40;
+  background: color-mix(in srgb, var(--ink) 4.5%, var(--panel));
+  box-shadow: inset 0 -1px 0 var(--line);
+}
+
+.topbar .titlebar-drag {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+}
+
+.topbar.has-outline {
+  grid-template-columns: auto minmax(0, 1fr) 252px;
+}
+
+.topbar .leading {
+  grid-column: 1;
+  grid-row: 1;
+  justify-self: start;
+  align-self: center;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 0 4px 0 8px;
+  box-sizing: border-box;
+  position: relative;
+  z-index: 2;
+}
+
+.topbar .leading > .inline-flex,
+.topbar .act-wrap {
+  display: flex;
+  align-items: center;
 }
 
 .topbar .title {
-  max-width: 60%;
+  grid-column: 1 / -1;
+  grid-row: 1;
+  align-self: stretch;
+  justify-self: stretch;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  max-width: none;
+  margin: 0;
+  padding: 0 80px;
+  box-sizing: border-box;
   font-size: 12px;
   font-weight: 600;
   letter-spacing: 0.02em;
+  line-height: 1;
   color: var(--mut);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  transition: color var(--dur-theme) ease;
+  text-align: center;
+  pointer-events: none;
+  position: relative;
+  z-index: 1;
 }
 
 .topbar .title.dim {
   opacity: 0.6;
 }
 
-.topbar .actions {
-  position: absolute;
-  right: 12px;
-  top: 50%;
-  transform: translateY(-50%);
+.topbar .tabs {
+  grid-column: 2;
+  grid-row: 1;
+  min-width: 0;
   display: flex;
   align-items: center;
-  gap: 2px;
-  -webkit-app-region: no-drag;
+  pointer-events: none;
+  position: relative;
+  z-index: 1;
 }
 
-.topbar .act {
-  width: 26px;
-  height: 26px;
-  display: grid;
-  place-items: center;
+.topbar .doc-tabs {
+  flex: 1;
+  min-width: 0;
+  overflow: visible;
   border: none;
-  border-radius: 7px;
+  background: transparent;
+  box-shadow: none;
+  border-radius: 0;
+  display: flex;
+  flex-direction: column;
+  pointer-events: none;
+}
+
+.topbar .doc-tabs .tabs-track {
+  flex: 1;
+  min-width: 0;
+  background: transparent;
+  border: none;
+  padding: 0 4px;
+  gap: 0;
+  align-items: center;
+  pointer-events: none;
+}
+
+.topbar .doc-tabs .tabs-track > [role="tablist"] {
+  flex: 0 1 auto;
+  width: max-content;
+  min-width: 0;
+  height: var(--topbar-tab);
+  align-items: center;
+  gap: 2px;
+  background: transparent;
+  border: none;
+  padding: 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: none;
+}
+
+.topbar .doc-tabs .tabs-track > [role="tablist"]::-webkit-scrollbar {
+  display: none;
+}
+
+.topbar .doc-tabs .tabs-trailing {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  align-self: center;
+  padding: 0 4px;
+}
+
+.topbar .doc-tabs .tabs-track > [role="tablist"],
+.topbar .doc-tabs [role="tab"],
+.topbar .doc-tabs .tabs-trailing,
+.topbar .tab-add,
+.topbar .act,
+.topbar .act-wrap {
+  pointer-events: auto;
+}
+
+.topbar .doc-tabs [role="tablist"] > div {
+  height: var(--topbar-tab);
+  max-width: 196px;
+  min-width: 0;
+}
+
+/* 标签是浮在顶栏里的独立胶囊(不与内容区拼接):等宽下限避免短标题缩成小块 */
+.topbar .doc-tabs [role="tab"] {
+  margin: 0;
+  height: var(--topbar-tab);
+  min-width: 112px;
+  max-width: 196px;
+  overflow: hidden;
+  justify-content: flex-start;
+  gap: 6px;
+  padding: 0 6px 0 10px;
+  border: none;
+  border-radius: 8px;
+  font-family: inherit;
+  font-size: 12.5px;
+  line-height: 1;
   background: transparent;
   color: var(--mut);
   cursor: pointer;
   transition: background-color var(--dur-quick) ease, color var(--dur-quick) ease;
+}
+
+.topbar .doc-tabs [role="tab"]:hover {
+  background: color-mix(in srgb, var(--ink) 5%, transparent);
+  color: var(--ink);
+}
+
+.topbar .doc-tabs [role="tablist"] > .is-dragging {
+  z-index: 8;
+}
+
+.topbar .doc-tabs [role="tab"][aria-selected="true"] {
+  background: var(--panel);
+  color: var(--ink);
+  box-shadow: var(--shadow-sm), inset 0 0 0 1px var(--line);
+}
+
+/* 关闭钮与"未保存"圆点共用同一格:静默时显示圆点,悬停时换成叉 */
+.topbar .doc-tabs [data-tab-end] {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  grid-template-areas: "end";
+  place-items: center;
+  width: 16px;
+  height: 16px;
+  flex: none;
+  margin-left: auto;
+}
+
+.topbar .doc-tabs .tab-end,
+.topbar .doc-tabs .tab-dot,
+.topbar .doc-tabs .tab-close {
+  grid-area: end;
+}
+
+.topbar .doc-tabs .tab-end {
+  display: grid;
+  grid-template-areas: "end";
+  place-items: center;
+  width: 16px;
+  height: 16px;
+}
+
+.topbar .doc-tabs .tab-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 99px;
+  background: currentColor;
+  opacity: 0;
+  transition: opacity var(--dur-quick) ease;
+}
+
+.topbar .doc-tabs .tab-close {
+  display: grid;
+  place-items: center;
+  width: 16px;
+  height: 16px;
+  border-radius: 5px;
+  color: inherit;
+  opacity: 0;
+  cursor: pointer;
+  transition: opacity var(--dur-quick) ease, background-color var(--dur-quick) ease;
+}
+
+.topbar .doc-tabs [role="tab"]:hover .tab-close,
+.topbar .doc-tabs [role="tab"][aria-selected="true"] .tab-close {
+  opacity: 0.55;
+}
+
+.topbar .doc-tabs .tab-end.dirty .tab-dot {
+  opacity: 0.6;
+}
+
+.topbar .doc-tabs [role="tab"][aria-selected="true"] .tab-end.dirty .tab-close,
+.topbar .doc-tabs .tab-end.dirty .tab-close {
+  opacity: 0;
+}
+
+.topbar .doc-tabs [role="tab"]:hover .tab-end.dirty .tab-dot {
+  opacity: 0;
+}
+
+.topbar .doc-tabs [role="tab"]:hover .tab-end.dirty .tab-close {
+  opacity: 0.55;
+}
+
+.topbar .doc-tabs [role="tab"] .tab-end .tab-close:hover,
+.topbar .doc-tabs [role="tab"]:hover .tab-end.dirty .tab-close:hover {
+  opacity: 1;
+  background: color-mix(in srgb, var(--ink) 10%, transparent);
+}
+
+.topbar .doc-tabs [role="tab"] > span:first-of-type {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  line-height: 1;
+}
+
+.topbar .doc-tabs [role="tab"] > span:first-of-type span {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-align: left;
+  min-width: 0;
+  width: 100%;
+  line-height: 1;
+}
+
+.topbar .tab-add {
+  flex: none;
+}
+
+.topbar .actions {
+  grid-column: 3;
+  grid-row: 1;
+  justify-self: stretch;
+  align-self: center;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 2px;
+  padding: 0 8px;
+  box-sizing: border-box;
+  position: relative;
+  z-index: 2;
+}
+
+.topbar .toolbar-divider {
+  width: 1px;
+  height: 16px;
+  background: var(--line);
+  margin: 0 4px;
+  flex: none;
+}
+
+.topbar .act-wrap {
+  display: grid;
+  place-items: center;
+}
+
+.topbar .act {
+  width: var(--topbar-act);
+  height: var(--topbar-act);
+  display: grid;
+  place-items: center;
+  margin: 0;
+  padding: 0;
+  line-height: 0;
+  appearance: none;
+  -webkit-appearance: none;
+  border: none;
+  border-radius: calc(var(--topbar-act) * 0.27);
+  background: transparent;
+  color: var(--mut);
+  cursor: pointer;
+  overflow: visible;
+  transition: background-color var(--dur-quick) ease, color var(--dur-quick) ease;
+}
+
+.topbar .act svg,
+.topbar .leading .act svg,
+.topbar .actions .copy-act svg,
+.topbar .export-trigger svg {
+  width: var(--topbar-icon);
+  height: var(--topbar-icon);
 }
 
 .topbar .act:hover {
@@ -359,30 +880,74 @@
   color: var(--ink);
 }
 
+.topbar .act.tab-add {
+  width: 24px;
+  height: 24px;
+  border-radius: 7px;
+  margin: 0;
+  color: var(--mut);
+}
+
+.topbar .act.tab-add svg {
+  width: 14px;
+  height: 14px;
+}
+
 .topbar .act.on {
   background: var(--acc-soft);
   color: var(--acc);
 }
 
-.topbar .export-wrap {
-  position: relative;
+/* 顶栏 CopyButton 对齐 .act 幽灵图标按钮:interior 默认是 36px 白键 + 文字,
+   与同排 26×26 图标钮差一轮;去按键外观,反馈走图标对勾 + aria-live */
+.topbar .actions .copy-act {
+  width: var(--topbar-act);
+  height: var(--topbar-act);
+  padding: 0;
+  gap: 0;
+  justify-content: center;
+  border: none;
+  background: transparent;
+  box-shadow: none;
+  border-radius: 7px;
+  color: var(--mut);
+  font-size: 0;
+}
+
+.topbar .actions .copy-act:hover {
+  background: color-mix(in srgb, var(--ink) 7%, transparent);
+  color: var(--ink);
+}
+
+.topbar .actions .copy-act.on {
+  background: var(--acc-soft);
+  color: var(--acc);
+}
+
+.topbar .export-trigger {
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  gap: 0;
+  justify-content: center;
+  border: none;
+  background: transparent;
+  box-shadow: none;
+  border-radius: 7px;
+  color: var(--mut);
+}
+
+.topbar .export-trigger:hover {
+  background: color-mix(in srgb, var(--ink) 7%, transparent);
+  color: var(--ink);
 }
 
 .topbar .export-pop {
-  position: absolute;
-  top: 32px;
-  right: 0;
-  z-index: 80;
   min-width: 148px;
   padding: 5px;
-  background: var(--panel);
-  border: 1px solid var(--line2);
-  border-radius: calc(var(--r) * 0.65);
-  box-shadow: var(--shadow-lg);
   display: flex;
   flex-direction: column;
   gap: 1px;
-  animation: rd-pop var(--dur-quick) var(--ease-out);
 }
 
 .topbar .export-pop button {
@@ -398,7 +963,7 @@
   font-family: inherit;
   font-size: 12.5px;
   text-align: left;
-  transition: background-color var(--dur-quick) ease;
+  width: 100%;
 }
 
 .topbar .export-pop button:hover {
@@ -440,7 +1005,22 @@
 .sidebar {
   flex: none;
   overflow: hidden;
+  position: relative;
   transition: width var(--dur-move) var(--ease-out);
+}
+
+.sidebar-drag {
+  display: none;
+}
+
+html.mac .sidebar-drag {
+  display: block;
+  position: absolute;
+  top: 0;
+  left: var(--lights-w);
+  right: 0;
+  height: var(--titlebar-h);
+  z-index: 1;
 }
 
 /* 收起后禁用交互,避免隐形按钮被点中 */
@@ -458,12 +1038,8 @@
   transition: opacity var(--dur-move) var(--ease-out);
 }
 
-/* macOS Overlay 交通灯区域:系统按钮位于窗口左上约 (13,13),高约 24px,
-   这里留出等高的拖拽留白,避免内容与交通灯重叠 */
-.sidebar .traffic-space {
-  height: 34px;
-  flex: none;
-  -webkit-app-region: drag;
+html.mac .sidebar .inner {
+  padding-top: var(--titlebar-h);
 }
 
 .sidebar .search {
@@ -492,7 +1068,7 @@
 }
 
 .sidebar .kbd {
-  font-family: ui-monospace, Menlo, monospace;
+  font-family: var(--font-mono);
   font-size: 9.5px;
   border: 1px solid var(--line);
   border-radius: 6px;
@@ -500,6 +1076,7 @@
 }
 
 .sidebar .section-label {
+  flex: none;
   font-size: 10px;
   letter-spacing: 0.16em;
   color: var(--mut);
@@ -512,6 +1089,7 @@
   flex-direction: column;
   gap: 2px;
   overflow-y: auto;
+  max-height: 28vh;
 }
 
 .sidebar .doc {
@@ -535,7 +1113,11 @@
 }
 
 .sidebar .doc.active {
-  background: var(--soft);
+  background: color-mix(in srgb, var(--acc) 14%, transparent);
+}
+
+.sidebar .doc.active:hover {
+  background: color-mix(in srgb, var(--acc) 18%, transparent);
 }
 
 .sidebar .meta {
@@ -547,16 +1129,13 @@
 }
 
 .sidebar .name {
+  flex: 1;
+  min-width: 0;
   font-size: 12.5px;
   font-weight: 500;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-}
-
-.sidebar .sub {
-  font-size: 10px;
-  color: var(--mut);
 }
 
 .sidebar .dot {
@@ -586,6 +1165,196 @@
   display: flex;
   flex-direction: column;
   min-height: 0;
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding-bottom: 8px;
+}
+
+.sidebar .vaults {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  flex: 1 0 auto;
+  opacity: 1;
+  transition: opacity var(--dur-quick) ease;
+}
+
+.sidebar .vaults.loading {
+  opacity: 0.55;
+}
+
+.sidebar .vault {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.sidebar .vault-head-row {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding-right: 4px;
+}
+
+.sidebar .vault-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+  padding: 16px 4px 10px 8px;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  font-family: inherit;
+  text-align: left;
+}
+
+.sidebar .vault:first-child .vault-head {
+  padding-top: 16px;
+}
+
+.sidebar .vault-caret {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 14px;
+  color: var(--mut);
+}
+
+.sidebar .vault-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 18px;
+  letter-spacing: -0.03em;
+  line-height: 1.15;
+  color: var(--ink);
+  font-weight: 800;
+}
+
+.sidebar .vault-tag {
+  flex: none;
+  font-size: 11px;
+  letter-spacing: 0.02em;
+  font-weight: 700;
+  color: var(--acc);
+  background: color-mix(in srgb, var(--acc) 14%, transparent);
+  border-radius: 99px;
+  padding: 2px 8px;
+}
+
+.sidebar .vault-count {
+  flex: none;
+  font-size: 11px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--mut);
+}
+
+.sidebar .vault-remove {
+  flex: none;
+  width: 22px;
+  height: 22px;
+  display: grid;
+  place-items: center;
+  margin: 8px 4px 0 0;
+  padding: 0;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--mut);
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity var(--dur-quick) ease, background-color var(--dur-quick) ease, color var(--dur-quick) ease;
+}
+
+.sidebar .vault-head-row:hover .vault-remove,
+.sidebar .vault-remove:focus-visible {
+  opacity: 1;
+}
+
+.sidebar .vault-remove:hover {
+  color: var(--ink);
+  background: color-mix(in srgb, var(--ink) 8%, transparent);
+}
+
+.sidebar .recent-dock {
+  flex: none;
+  min-width: 0;
+  border-top: 1px solid var(--line);
+}
+
+.sidebar .recent-dock .vault-head {
+  padding: 10px 8px;
+  cursor: default;
+}
+
+.sidebar .recent-dock .vault-name {
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0;
+}
+
+.sidebar .recent-list {
+  padding: 0 4px 8px;
+}
+
+.sidebar .recent-preview {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.sidebar .recent-item {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  margin: 0;
+  padding: 6px 8px;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--ink);
+  cursor: pointer;
+  font-family: inherit;
+  text-align: left;
+}
+
+.sidebar .recent-item:hover {
+  background: color-mix(in srgb, var(--ink) 6%, transparent);
+}
+
+.sidebar .recent-item .name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 12.5px;
+  font-weight: 500;
+}
+
+.sidebar .recent-more {
+  display: block;
+  width: 100%;
+  margin: 2px 0 0;
+  padding: 6px 8px;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--mut);
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 12px;
+  text-align: left;
+}
+
+.sidebar .recent-more:hover {
+  color: var(--ink);
+  background: color-mix(in srgb, var(--ink) 6%, transparent);
 }
 
 .sidebar .root-btn {
@@ -616,109 +1385,117 @@
   white-space: nowrap;
 }
 
-.sidebar .mini-btn {
-  display: grid;
-  place-items: center;
-  width: 20px;
-  height: 20px;
-  border: none;
-  border-radius: 6px;
-  background: transparent;
-  color: var(--mut);
-  cursor: pointer;
-  flex: none;
+.sidebar .places {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  padding: 0 8px 8px;
 }
 
-.sidebar .mini-btn:hover {
-  background: var(--soft);
+.sidebar .place-chip {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: inherit;
+  font-size: 11px;
+  color: var(--mut);
+  background: transparent;
+  border: 1px solid var(--line);
+  border-radius: 99px;
+  padding: 2px 8px;
+  cursor: pointer;
+}
+
+.sidebar .place-chip:hover {
   color: var(--ink);
+  background: color-mix(in srgb, var(--ink) 6%, transparent);
+}
+
+.sidebar .place-chip.on {
+  color: var(--ink);
+  background: var(--soft);
+  border-color: transparent;
 }
 
 .sidebar .tree {
-  overflow-y: auto;
-  max-height: 40vh;
+  position: relative;
+  overflow: visible;
+  flex: none;
+  min-height: 0;
   opacity: 1;
-  transition: opacity var(--dur-quick) ease;
+}
+
+.sidebar .folder-tree {
+  border: none;
+  box-shadow: none;
+  background: transparent;
+  padding: 0;
+  border-radius: 0;
+}
+
+.sidebar .folder-tree ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.sidebar .folder-tree [role="treeitem"].is-selected {
+  color: var(--ink);
+}
+
+.sidebar .folder-tree [role="treeitem"].is-selected .tree-sel,
+.sidebar .folder-tree .tree-sel {
+  background: color-mix(in srgb, var(--acc) 22%, var(--panel));
+}
+
+.sidebar .folder-tree [role="treeitem"][aria-selected="true"] {
+  color: var(--ink);
+}
+
+.sidebar .tree-rename {
+  min-width: 0;
+  flex: 1;
+  height: 22px;
+  margin: 0;
+  padding: 0 4px;
+  border: 1px solid var(--acc);
+  border-radius: 6px;
+  background: var(--panel);
+  color: var(--ink);
+  font: inherit;
+  font-size: 12.5px;
+  outline: none;
+}
+
+.sidebar .tree-ctx {
+  display: block;
 }
 
 .sidebar .tree.loading {
   opacity: 0.55;
 }
 
-.sidebar .tree-item {
-  display: flex;
-  align-items: center;
-  gap: 7px;
-  width: 100%;
-  padding: 5px 10px;
-  border: none;
-  border-radius: calc(var(--r) * 0.45);
-  background: transparent;
-  color: var(--mut);
-  cursor: pointer;
-  font-family: inherit;
-  font-size: 12px;
-  text-align: left;
-  transition: background-color var(--dur-quick) ease, color var(--dur-quick) ease;
-}
-
-.sidebar .tree-item:hover {
-  background: color-mix(in srgb, var(--ink) 6%, transparent);
-  color: var(--ink);
-}
-
-.sidebar .tree-item .dir-name,
-.sidebar .tree-item .file-name {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.sidebar .tree-item.dir > svg {
-  flex: none;
-  transition: transform var(--dur-quick) var(--ease-out);
-}
-
-.sidebar .tree-item.dir > svg.folded {
-  transform: rotate(-90deg);
-}
-
-.sidebar .tree-item.file {
-  padding-top: 4px;
-  padding-bottom: 4px;
-}
-
 .sidebar .footer {
   display: flex;
   align-items: center;
-  gap: 2px;
-  padding: 6px 2px 0;
-  border-top: 2px solid var(--line2);
+  gap: 8px;
+  flex: none;
+  padding: 8px 2px 2px;
   margin: 0 4px;
-  padding-top: 10px;
+  background: var(--bg);
 }
 
+/* interior PressDepth 按键:外壳只做占位,尺寸由 face(32)+depth(3)决定;
+   hover/按压反馈全部交给按键物理效果(face 滑落到底座),不再叠加平面按钮样式 */
 .sidebar .footer button {
-  width: 32px;
-  height: 32px;
-  display: grid;
-  place-items: center;
+  display: inline-flex;
+  width: auto;
+  height: auto;
   border: none;
-  border-radius: calc(var(--r) * 0.55);
   background: transparent;
   color: var(--mut);
   cursor: pointer;
-  transition: background-color var(--dur-quick) ease, color var(--dur-quick) ease,
-    transform var(--dur-quick) var(--ease-out);
-}
-
-.sidebar .footer button:hover {
-  background: color-mix(in srgb, var(--ink) 6%, transparent);
-  color: var(--ink);
-}
-
-.sidebar .footer button:active {
-  transform: scale(0.88);
 }
 
 /* --- SettingsDrawer(interior Drawer) --- */
@@ -739,11 +1516,46 @@
   font-weight: 800;
 }
 
+.drawer-field-label {
+  margin-top: 4px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.drawer-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 4px;
+}
+
+.drawer-row-text {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.drawer-row-title {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.drawer-row-hint {
+  font-size: 11px;
+  line-height: 1.35;
+  color: var(--mut);
+  font-weight: 500;
+}
+
 .drawer-version {
   display: flex;
   align-items: center;
   gap: 6px;
-  font-family: ui-monospace, Menlo, monospace;
+  font-family: var(--font-mono);
   font-size: 10px;
   letter-spacing: 0.08em;
   color: var(--mut);
@@ -775,6 +1587,22 @@
 
 .settings-drawer .export-btn:active {
   transform: scale(0.98);
+}
+
+/* ⌘K 搜索面板:更宽,结果区高度固定,不随条数伸缩 */
+div.search-palette {
+  width: min(40rem, calc(100vw - 48px));
+  max-width: min(40rem, calc(100vw - 48px));
+}
+
+div.search-palette .palette-field {
+  height: 56px;
+  padding-inline: 16px;
+  gap: 12px;
+}
+
+div.search-palette .palette-field input {
+  font-size: 16px;
 }
 
 /* --- FindBar --- */
@@ -811,11 +1639,18 @@
 }
 
 .findbar .count {
+  display: inline-flex;
+  align-items: baseline;
+  justify-content: center;
   font-size: 11px;
   color: var(--mut);
   min-width: 52px;
   text-align: center;
   font-variant-numeric: tabular-nums;
+}
+
+.findbar .count .sep {
+  white-space: pre;
 }
 
 .findbar .count.empty {
@@ -844,6 +1679,7 @@
 .content {
   flex: 1;
   min-width: 0;
+  overflow-x: clip;
   overflow-y: auto;
   position: relative;
   background: var(--panel);
@@ -853,33 +1689,56 @@
 /* --- EditorPane --- */
 .editor-pane {
   position: relative;
-  height: 100%;
+  min-height: 100%;
+  min-width: 0;
+  max-width: 100%;
   background: var(--panel);
 }
 
+/* 源码模式:铺满可见内容区,在 textarea 内滚动。不能写 height:100% 到
+   .editor-pane 全局 —— 所见即所得会长文被裁、点不进光标。 */
+.editor-pane.is-source {
+  position: absolute;
+  inset: 0;
+  min-height: 0;
+}
+
 .editor-host {
-  height: 100%;
+  min-height: 100%;
+  min-width: 0;
+  max-width: 100%;
 }
 
 .source-pane {
   height: 100%;
-  padding: 18px 24px;
+  min-height: 100%;
+  min-width: 0;
+  max-width: 100%;
+  padding: 18px 24px 24px;
+  box-sizing: border-box;
   background: var(--panel);
+  display: flex;
+  flex-direction: column;
 }
 
 .source-pane textarea {
+  display: block;
+  flex: 1;
+  min-height: 0;
   width: 100%;
-  height: 100%;
   resize: none;
   border: none;
   outline: none;
   background: transparent;
   color: var(--ink);
-  font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  font-family: var(--font-mono);
   font-size: 13.5px;
-  line-height: 1.65;
+  line-height: 1.5;
   white-space: pre-wrap;
   word-break: break-word;
+  overflow: auto;
+  user-select: text;
+  -webkit-user-select: text;
 }
 
 .editor-pane .overlays {
@@ -892,6 +1751,11 @@
   flex-direction: column;
   gap: 8px;
   width: min(560px, 90%);
+  pointer-events: none;
+}
+
+.editor-pane .overlays > * {
+  pointer-events: auto;
 }
 
 .editor-pane .banner {
@@ -914,16 +1778,6 @@
   color: var(--acc);
 }
 
-/* --- 阅读进度条(interior ReadingProgress,sticky 于内容区顶部) --- */
-.reading-progress-wrap {
-  position: sticky;
-  top: 0;
-  z-index: 5;
-  padding: 7px 18px 0;
-  background: color-mix(in srgb, var(--panel) 92%, transparent);
-  backdrop-filter: blur(4px);
-}
-
 /* --- 目录树首次加载骨架(interior useSkeletonSwap) --- */
 .tree-skeleton {
   display: flex;
@@ -938,26 +1792,44 @@
   background: color-mix(in srgb, var(--ink) 12%, transparent);
 }
 
-/* --- 欢迎页主按钮(interior PressDepth 的品牌红变体) --- */
-.welcome .welcome-primary {
+/* 欢迎页:主按钮品牌色 + 次按钮白底描边 */
+.welcome .welcome-action {
+  min-width: 118px;
+}
+
+.welcome button:has(> .press-red) > span[aria-hidden] {
+  background: color-mix(in srgb, var(--acc) 74%, var(--ink));
+}
+
+.welcome .press-red {
   background: var(--acc);
   border-color: transparent;
   color: #fff;
 }
 
-/* --- PressDepth 尺寸/品牌变体(前缀选择器提高优先级,盖过 interior 默认 h-9 等) --- */
+.welcome .press-red > span[aria-hidden] {
+  opacity: 0;
+}
+
+/* 品牌红/危险红按键:底座(侧面)同步为深红,避免红面浮在灰座上 */
+.confirm-modal button:has(> .press-red) > span[aria-hidden],
+.editor-pane .banner button:has(> .press-red) > span[aria-hidden] {
+  background: color-mix(in srgb, var(--acc) 74%, var(--ink));
+}
+
+/* --- PressDepth 尺寸/品牌变体(前缀选择器提高优先级,盖过 interior 默认 h-9 等) ---
+   图标键保持原版标准比例:面 36(h-9 自带)、圆角 9(自带)、depth 4(组件默认),
+   只覆盖成图标正方形(去掉 px-3.5 水平内边距) */
 .sidebar .footer .press-icon {
-  width: 32px;
-  height: 32px;
+  width: 36px;
   padding: 0;
-  border-radius: 10px;
 }
 
 .confirm-modal .press-sm,
 .editor-pane .banner .press-sm {
   height: 28px;
   padding-inline: 12px;
-  border-radius: 99px;
+  border-radius: 9px;
   font-size: 12px;
   gap: 6px;
 }

@@ -11,16 +11,18 @@ import { linkTooltip } from "@milkdown/crepe/feature/link-tooltip";
 import { listItem } from "@milkdown/crepe/feature/list-item";
 import { placeholder } from "@milkdown/crepe/feature/placeholder";
 import { table } from "@milkdown/crepe/feature/table";
-import { toolbar } from "@milkdown/crepe/feature/toolbar";
 import { editorViewCtx, parserCtx, remarkPluginsCtx, remarkStringifyOptionsCtx } from "@milkdown/kit/core";
 import { undo, redo } from "@milkdown/kit/prose/history";
 import { selectAll } from "@milkdown/kit/prose/commands";
+import { Plugin, PluginKey } from "@milkdown/kit/prose/state";
+import { $prose, $remark } from "@milkdown/kit/utils";
 import "./editorTheme.css";
-import { slugify } from "../outline/extractOutline";
+import { findHeadingBySlug } from "../outline/extractOutline";
 import { highlightMark, remarkHighlight } from "./plugins/highlight";
 import { taskToggleKeymap, taskClickToggle } from "./plugins/taskToggle";
 import { createFindFeature, type FindController } from "./plugins/findPlugin";
 import { richCopyPlugin } from "./plugins/richCopy";
+import { t } from "../i18n/runtime";
 
 /**
  * Crepe 实例工厂 —— 全项目最重要的文件。
@@ -32,8 +34,8 @@ import { richCopyPlugin } from "./plugins/richCopy";
  *   搜索、富文本复制、任务快捷键)得以安全注入,绕开"动态 editor.use() 重建
  *   编辑器、打断输入法合成"的坑;代码块也不再需要 theme:null hack(缺省
  *   即不引入 One Dark,颜色由 editorTheme.css token 驱动);
- * - Cursor(空行"+"悬浮)与 BlockEdit(块手柄/斜杠菜单)不注入 → 保持禁用,
- *   与产品"无悬浮干扰"的视觉语言一致;
+ * - Cursor(空行"+"悬浮)、BlockEdit(块手柄/斜杠菜单)、Toolbar(选区浮动格式栏)
+ *   均不注入 → 保持禁用,与产品"无悬浮干扰"的视觉语言一致;
  * - listener 的 markdownUpdated 是 200ms 防抖的,因此"程序性修改"用
  *   内容对比区分:setMarkdown 记录期望内容,回显与之相等则不算用户输入;
  * - remark 侧注入:remarkPluginsCtx 挂 ==高亮== 拆分插件;
@@ -62,11 +64,74 @@ export interface CreateEditorOpts {
   imageBaseDir?: string | null;
 }
 
+/** WKWebView 在祖先 user-select:none 时可能点不进 contenteditable;点下去先聚焦。 */
+const ensureFocus = $prose(
+  () =>
+    new Plugin({
+      key: new PluginKey("COCONUT_ENSURE_FOCUS"),
+      props: {
+        handleDOMEvents: {
+          pointerdown: (view) => {
+            if (!view.hasFocus()) view.focus();
+            return false;
+          },
+        },
+      },
+    }),
+);
+
+/**
+ * remark-math 把 $...$ 收成 inlineMath。误判特征:
+ * 含汉字、或过长(金额/整段正文被 $ 包住)。真公式通常是短 ASCII。
+ */
+function isFalseInlineMath(value: string): boolean {
+  if (/[\u3400-\u9fff]/.test(value)) return true;
+  if (value.length > 200) return true;
+  // 金额/整句:有空格却没有 LaTeX 命令(保留 $a + b$、$\sum$ 这类)
+  if (/\s/.test(value) && !/[\\^_{}]/.test(value) && value.length > 24) return true;
+  return false;
+}
+
+function unwrapFalseInlineMath(tree: Record<string, unknown>): void {
+  const children = tree.children;
+  if (!Array.isArray(children)) return;
+  const out: unknown[] = [];
+  for (const child of children) {
+    if (
+      typeof child === "object" &&
+      child !== null &&
+      (child as { type?: unknown }).type === "inlineMath" &&
+      typeof (child as { value?: unknown }).value === "string" &&
+      isFalseInlineMath((child as { value: string }).value)
+    ) {
+      out.push({ type: "text", value: `$${(child as { value: string }).value}$` });
+      continue;
+    }
+    out.push(child);
+    unwrapFalseInlineMath(child as Record<string, unknown>);
+  }
+  tree.children = out;
+}
+
+const unwrapFalseMath = $remark("unwrapFalseMath", () => () => unwrapFalseInlineMath);
+
+/**
+ * 任务勾选框(样式见 components.css 的 .t-check)。
+ * 勾选/未勾选必须传同一段 markup:Crepe 的 Icon 用 innerHTML 注入图标,两态
+ * 字符串不同就会整段换掉 svg —— 新节点没有过渡起点,描线动画会直接跳到终点。
+ * 传同一段则 Vue 跳过 innerHTML 补丁,只翻 .label 上的 checked/unchecked 类,
+ * 勾选态与描线全部交给 CSS。d 属性改了记得同步 --check-len(路径总长向上取整)。
+ */
+const CHECKBOX_ICON =
+  '<span class="t-check"><svg viewBox="0 0 10.1668 10.1668" aria-hidden="true">' +
+  '<path d="M1 5.52L3.92 9.17L9.17 1"/></svg></span>';
+
 export interface EditorHandle {
   getMarkdown(): string;
   /** 程序性设值(reload),不会触发 onUserInput */
   setMarkdown(md: string): void;
-  destroy(): void;
+  destroy(): Promise<void>;
+  focus(): void;
   /** 大纲点击跳转 */
   scrollToHeading(slug: string): void;
   /** 文内搜索(⌘F):open/find/setQuery/next/prev/close */
@@ -121,29 +186,50 @@ export async function createEditor(opts: CreateEditorOpts): Promise<EditorHandle
       .use(highlightMark)
       .use(taskToggleKeymap)
       .use(taskClickToggle)
+      .use(ensureFocus)
       .use(findFeature.plugin)
       .use(richCopyPlugin);
   });
 
+  // Crepe 默认配置带 @codemirror/language-data;CrepeBuilder 不会合并
+  // 这份默认值,languages 缺省是 [] → 语言下拉永远「无匹配结果」。
+  // 动态 import,语言包单独成 chunk,不进主包;theme 仍不传,避免 One Dark。
+  const { languages } = await import("@codemirror/language-data");
+
+  // 代码块必须开 CodeMirror 的软换行:不开时 CM 按最长行给 .cm-content 算
+  // minWidth,长行既不换行也超出卡片宽度(实测 763px 内容塞进 564px 容器,
+  // 中间的代码看不见也点不到)。同时占位符是换行排版的,不开换行两者高度
+  // 差一倍,滚动经过时整篇文档忽长忽短。
+  const { EditorView } = await import("@codemirror/view");
+
   // ---- 官方特性(对应 Crepe 默认集,除 Cursor/BlockEdit) ----
   builder
     .addFeature(codeMirror, {
-      // coconut 化:代码块语言下拉文案(默认英文)
-      // theme 不传 → 不引入 One Dark(默认配置里是 oneDark,这里缺省即无)
-      searchPlaceholder: "搜索语言…",
-      noResultText: "无匹配结果",
-      copyText: "复制",
+      languages,
+      extensions: [EditorView.lineWrapping],
+      searchPlaceholder: t("searchLang"),
+      noResultText: t("noLangMatch"),
+      copyText: t("copy"),
     })
-    .addFeature(placeholder, { text: "开始输入…", mode: "doc" })
+    .addFeature(placeholder, { text: t("placeholder"), mode: "doc" })
     .addFeature(latex)
     .addFeature(table)
     .addFeature(linkTooltip)
-    .addFeature(listItem)
+    .addFeature(listItem, {
+      checkBoxCheckedIcon: CHECKBOX_ICON,
+      checkBoxUncheckedIcon: CHECKBOX_ICON,
+    })
     .addFeature(imageBlock)
-    .addFeature(toolbar);
+    // remark-math 默认把 $...$ 当行内公式。研究报告/商务文档里的 $
+    // (金额、占位)会被收成 atom 节点:粉底选中、点不进光标、完全不能改。
+    // 必须 .use 排在 latex 之后,才能在 inlineMath 生成后再还原误判。
+    .addFeature((ed) => {
+      ed.use(unwrapFalseMath);
+    });
 
   const editor = builder.editor;
   await builder.create();
+  builder.setReadonly(false);
 
   /**
    * listener 注册放在 create 之后:pre-create 的 builder.on 是在 config
@@ -185,10 +271,17 @@ export async function createEditor(opts: CreateEditorOpts): Promise<EditorHandle
   return {
     getMarkdown: () => builder.getMarkdown(),
     setMarkdown,
-    destroy: () => {
+    destroy: async () => {
       programmaticMd = null;
-      void builder.destroy();
+      await builder.destroy();
       root.remove();
+    },
+    focus: () => {
+      editor.action((ctx) => {
+        const view = ctx.get(editorViewCtx);
+        view.dom.setAttribute("contenteditable", "true");
+        view.focus();
+      });
     },
     scrollToHeading: (slug) => scrollToHeading(root, slug),
     find: findFeature.controller,
@@ -216,9 +309,7 @@ export async function createEditor(opts: CreateEditorOpts): Promise<EditorHandle
 
 /** 按 slug 找到 heading 元素并滚动到位(与 extractOutline 的 slug 算法一致) */
 function scrollToHeading(root: HTMLElement, slug: string): void {
-  const headings = Array.from(root.querySelectorAll("h1, h2, h3, h4, h5, h6"));
-  const target = headings.find((h) => slugify(h.textContent ?? "") === slug);
-  target?.scrollIntoView({ behavior: "smooth", block: "start" });
+  findHeadingBySlug(root, slug)?.scrollIntoView({ behavior: "smooth", block: "start" });
 }
 
 /**
