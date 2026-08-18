@@ -24,8 +24,9 @@
   --crepe-color-inline-area: var(--soft);
   --crepe-color-error: var(--acc);
   --crepe-color-hover: color-mix(in srgb, var(--ink) 5%, transparent);
-  /* ::selection / 表格选区遮罩用;块级 .ProseMirror-selectednode 粉底在下方单独清掉 */
+  /* 表格选区遮罩用;块级 selectednode 与原生 ::selection 不走这个色 */
   --crepe-color-selected: color-mix(in srgb, var(--acc) 18%, transparent);
+  --coconut-sel: color-mix(in srgb, var(--acc) 18%, transparent);
 
   --crepe-shadow-1: var(--shadow-sm);
   --crepe-shadow-2: var(--shadow-md);
@@ -879,13 +880,12 @@
   text-decoration: underline;
 }
 
-/* ===== 选区:关掉原生 ::selection,改用 .coconut-sel 只盖文字 =====
-   WKWebView 选跨块时会把标题后的换行涂到行尾,拖一条粉底;透明掉原生选区后
-   由 textSelection 插件画 decoration,不会铺到右边缘。 */
-.milkdown .ProseMirror .ProseMirror-selectednode,
-.milkdown .ProseMirror li.ProseMirror-selectednode,
-.milkdown .ProseMirror blockquote.ProseMirror-selectednode {
-  background: transparent !important;
+/* ===== 选区:浅色块底拿掉,只留字上的高亮 =====
+   WKWebView 把 `::selection: transparent` 当成无效,会回退成 Crepe 的粉底,
+   于是整块浅粉 + .coconut-sel 深粉叠在一起。块级选区画成页面底色,看起来
+   就是透明;真正的红只画在包住字形的 .coconut-sel 上。 */
+.milkdown .ProseMirror .ProseMirror-selectednode:not(img) {
+  background: none !important;
   outline: none;
   box-shadow: none;
 }
@@ -900,15 +900,39 @@
 .milkdown .ProseMirror::-moz-selection,
 .milkdown .ProseMirror ::-moz-selection,
 .milkdown .ProseMirror *::-moz-selection {
-  background: transparent !important;
+  /* 不能用 transparent:WebKit 会忽略并改用主题选区色 */
+  background: var(--panel) !important;
+  background-color: var(--panel) !important;
+  color: inherit;
+}
+
+.crepe .ProseMirror blockquote::selection,
+.crepe .ProseMirror blockquote *::selection,
+.crepe .ProseMirror pre::selection,
+.crepe .ProseMirror pre *::selection {
+  background: var(--soft) !important;
+  background-color: var(--soft) !important;
   color: inherit;
 }
 
 .crepe .ProseMirror .coconut-sel {
-  background: var(--crepe-color-selected);
+  background: var(--coconut-sel);
   border-radius: 2px;
   box-decoration-break: clone;
   -webkit-box-decoration-break: clone;
+}
+
+.milkdown .ProseMirror .coconut-sel::selection,
+.milkdown .ProseMirror .coconut-sel *::selection,
+.milkdown .ProseMirror .coconut-sel::-moz-selection,
+.milkdown .ProseMirror .coconut-sel *::-moz-selection,
+.crepe .ProseMirror blockquote .coconut-sel::selection,
+.crepe .ProseMirror blockquote .coconut-sel *::selection,
+.crepe .ProseMirror pre .coconut-sel::selection,
+.crepe .ProseMirror pre .coconut-sel *::selection {
+  background: var(--coconut-sel) !important;
+  background-color: var(--coconut-sel) !important;
+  color: inherit;
 }
 
 .milkdown .milkdown-table-block .selectedCell::after {
