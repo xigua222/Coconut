@@ -651,6 +651,11 @@
   line-height: 1.28;
   margin: 1.2em 0 0.32em;
   scroll-margin-top: 12px;
+  /* 块级标题默认撑满行宽,WebKit 选区会把标题文字后面的空白涂到右边缘;
+     盒子收成内容宽,选区就只包文字。 */
+  position: relative;
+  width: fit-content;
+  max-width: 100%;
 }
 
 .crepe .ProseMirror h1 {
@@ -702,13 +707,28 @@
 :root[data-heading-marks="on"] .crepe .ProseMirror h5::after { content: "H5"; content: "H5" / ""; }
 :root[data-heading-marks="on"] .crepe .ProseMirror h6::after { content: "H6"; content: "H6" / ""; }
 
+:root[data-heading-marks="on"] .crepe .ProseMirror h1,
+:root[data-heading-marks="on"] .crepe .ProseMirror h2,
+:root[data-heading-marks="on"] .crepe .ProseMirror h3,
+:root[data-heading-marks="on"] .crepe .ProseMirror h4,
+:root[data-heading-marks="on"] .crepe .ProseMirror h5,
+:root[data-heading-marks="on"] .crepe .ProseMirror h6 {
+  /* 给右侧 H1–H6 标记留空,避免绝对定位标被内容区裁掉 */
+  max-width: calc(100% - 2.75em);
+}
+
 :root[data-heading-marks="on"] .crepe .ProseMirror h1::after,
 :root[data-heading-marks="on"] .crepe .ProseMirror h2::after,
 :root[data-heading-marks="on"] .crepe .ProseMirror h3::after,
 :root[data-heading-marks="on"] .crepe .ProseMirror h4::after,
 :root[data-heading-marks="on"] .crepe .ProseMirror h5::after,
 :root[data-heading-marks="on"] .crepe .ProseMirror h6::after {
-  display: inline-block;
+  /* 脱出行内:标在标题盒右侧,不参与选区,避免 H2 挖洞 + 后面拖一条粉底 */
+  position: absolute;
+  left: 100%;
+  top: 50%;
+  transform: translateY(-50%);
+  display: block;
   margin-left: 0.42em;
   font-family: var(--font-mono, ui-monospace, SFMono-Regular, Menlo, Consolas, monospace);
   font-size: 13px;
@@ -718,9 +738,9 @@
   line-height: 1;
   color: var(--mut);
   opacity: 0.78;
-  vertical-align: middle;
   pointer-events: none;
   user-select: none;
+  -webkit-user-select: none;
   white-space: nowrap;
 }
 
