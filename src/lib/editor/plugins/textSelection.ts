@@ -8,6 +8,25 @@ import type { EditorView } from "@milkdown/kit/prose/view";
 
 const key = new PluginKey("COCONUT_TEXT_SEL");
 
+function area(r: DOMRect): number {
+  return r.width * r.height;
+}
+
+function covers(outer: DOMRect, inner: DOMRect): boolean {
+  return (
+    outer.left <= inner.left + 0.6 &&
+    outer.top <= inner.top + 0.6 &&
+    outer.right >= inner.right - 0.6 &&
+    outer.bottom >= inner.bottom - 0.6
+  );
+}
+
+/** 丢掉被更大盒子包住的矩形,避免 strong/code 再叠一层变得更深 */
+function dedupeRects(rects: DOMRect[]): DOMRect[] {
+  const list = rects.filter((r) => r.width >= 1 && r.height >= 4);
+  return list.filter((r) => !list.some((o) => o !== r && covers(o, r) && area(o) > area(r) + 1));
+}
+
 function collectRects(view: EditorView): DOMRect[] {
   const { selection, doc } = view.state;
   if (selection.empty || selection instanceof NodeSelection) return [];
@@ -16,9 +35,9 @@ function collectRects(view: EditorView): DOMRect[] {
 
   const out: DOMRect[] = [];
   doc.nodesBetween(from, to, (node, pos) => {
-    if (!node.isTextblock) return true;
-    const start = Math.max(from, pos + 1);
-    const end = Math.min(to, pos + node.nodeSize - 1);
+    if (!node.isText) return true;
+    const start = Math.max(from, pos);
+    const end = Math.min(to, pos + node.nodeSize);
     if (start >= end) return false;
     try {
       const a = view.domAtPos(start);
@@ -26,16 +45,13 @@ function collectRects(view: EditorView): DOMRect[] {
       const range = document.createRange();
       range.setStart(a.node, a.offset);
       range.setEnd(b.node, b.offset);
-      for (const r of range.getClientRects()) {
-        if (r.width < 1 || r.height < 4) continue;
-        out.push(r);
-      }
+      for (const r of range.getClientRects()) out.push(r);
     } catch {
       /* 选区落在 atom / 尚未挂上的节点时 coords 会抛 */
     }
     return false;
   });
-  return out;
+  return dedupeRects(out);
 }
 
 function paint(layer: HTMLElement, view: EditorView): void {
