@@ -1,9 +1,16 @@
 import { CrepeBuilder } from "@milkdown/crepe/builder";
-// Crepe 的 JS 不引入任何 CSS,主题与特性样式必须手动导入:
-// frame.css = 主题变量;common/style.css = @import 汇总全部特性样式
-// (prosemirror/reset/toolbar/code-mirror/latex/table/link-tooltip 等)
+// Crepe 的 JS 不引入任何 CSS。只导入实际启用的特性样式:
+// Cursor / BlockEdit / Toolbar / TopBar / Diff / AI 均未注入,对应 CSS 不进包。
 import "@milkdown/crepe/theme/frame.css";
-import "@milkdown/crepe/theme/common/style.css";
+import "@milkdown/crepe/theme/common/prosemirror.css";
+import "@milkdown/crepe/theme/common/reset.css";
+import "@milkdown/crepe/theme/common/code-mirror.css";
+import "@milkdown/crepe/theme/common/image-block.css";
+import "@milkdown/crepe/theme/common/link-tooltip.css";
+import "@milkdown/crepe/theme/common/list-item.css";
+import "@milkdown/crepe/theme/common/placeholder.css";
+import "@milkdown/crepe/theme/common/table.css";
+import "@milkdown/crepe/theme/common/latex.css";
 import { codeMirror } from "@milkdown/crepe/feature/code-mirror";
 import { imageBlock } from "@milkdown/crepe/feature/image-block";
 import { latex } from "@milkdown/crepe/feature/latex";
@@ -22,8 +29,8 @@ import { highlightMark, remarkHighlight } from "./plugins/highlight";
 import { taskToggleKeymap, taskClickToggle } from "./plugins/taskToggle";
 import { createFindFeature, type FindController } from "./plugins/findPlugin";
 import { richCopyPlugin } from "./plugins/richCopy";
-import { textSelectionHighlight } from "./plugins/textSelection";
 import { t } from "../i18n/runtime";
+import { loadCodeLanguages } from "./languages";
 
 /**
  * Crepe 实例工厂 —— 全项目最重要的文件。
@@ -93,7 +100,7 @@ function isFalseInlineMath(value: string): boolean {
   return false;
 }
 
-function unwrapFalseInlineMath(tree: Record<string, unknown>): void {
+function unwrapFalseInlineMath(tree: { children?: unknown }): void {
   const children = tree.children;
   if (!Array.isArray(children)) return;
   const out: unknown[] = [];
@@ -109,7 +116,7 @@ function unwrapFalseInlineMath(tree: Record<string, unknown>): void {
       continue;
     }
     out.push(child);
-    unwrapFalseInlineMath(child as Record<string, unknown>);
+    unwrapFalseInlineMath(child as { children?: unknown });
   }
   tree.children = out;
 }
@@ -189,14 +196,13 @@ export async function createEditor(opts: CreateEditorOpts): Promise<EditorHandle
       .use(taskClickToggle)
       .use(ensureFocus)
       .use(findFeature.plugin)
-      .use(richCopyPlugin)
-      .use(textSelectionHighlight);
+      .use(richCopyPlugin);
   });
 
-  // Crepe 默认配置带 @codemirror/language-data;CrepeBuilder 不会合并
-  // 这份默认值,languages 缺省是 [] → 语言下拉永远「无匹配结果」。
-  // 动态 import,语言包单独成 chunk,不进主包;theme 仍不传,避免 One Dark。
-  const { languages } = await import("@codemirror/language-data");
+  // Crepe 默认配置带全量 language-data;CrepeBuilder 不会合并这份默认值,
+  // languages 缺省是 [] → 语言下拉永远「无匹配结果」。
+  // 只挂常见语言,包本身动态 import,不进首屏;theme 仍不传,避免 One Dark。
+  const languages = await loadCodeLanguages();
 
   // 代码块必须开 CodeMirror 的软换行:不开时 CM 按最长行给 .cm-content 算
   // minWidth,长行既不换行也超出卡片宽度(实测 763px 内容塞进 564px 容器,

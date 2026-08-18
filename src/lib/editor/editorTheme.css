@@ -26,7 +26,6 @@
   --crepe-color-hover: color-mix(in srgb, var(--ink) 5%, transparent);
   /* 表格选区遮罩用;块级 selectednode 与原生 ::selection 不走这个色 */
   --crepe-color-selected: color-mix(in srgb, var(--acc) 18%, transparent);
-  --coconut-sel: color-mix(in srgb, var(--acc) 18%, transparent);
 
   --crepe-shadow-1: var(--shadow-sm);
   --crepe-shadow-2: var(--shadow-md);
@@ -50,14 +49,7 @@
   min-width: 0;
 }
 
-.crepe.coconut-sel-host {
-  position: relative;
-}
-
 .crepe .ProseMirror {
-  /* 全局 ::selection 用 --acc-soft;改成页面底,系统选区(含行尾浅粉)看不见 */
-  --acc-soft: #fcfbfb;
-  --crepe-color-selected: #fcfbfb;
   width: 100%;
   max-width: min(var(--editor-measure, 1080px), 100%);
   margin: 0 auto;
@@ -87,62 +79,6 @@
 .crepe .ProseMirror * {
   user-select: text;
   -webkit-user-select: text;
-}
-
-/* ===== 浮动工具栏:紧凑 coconut 卡片(比例对齐顶栏图标按钮) ===== */
-.milkdown .milkdown-toolbar {
-  background: var(--panel);
-  border: 1px solid var(--line);
-  border-radius: var(--r-item);
-  box-shadow: var(--shadow-md);
-  padding: 3px;
-  gap: 2px;
-  font-family: inherit;
-  /* 只用透明度过渡:浮层位置由 floating-ui 的 transform 控制,
-     动画绝不能碰 transform */
-  animation: rd-fade var(--dur-quick) ease;
-}
-
-.milkdown .milkdown-toolbar .divider {
-  width: 1px;
-  height: 16px;
-  margin: 0 3px;
-  flex: none;
-  background: var(--line);
-}
-
-.milkdown .milkdown-toolbar .toolbar-item {
-  width: 28px;
-  height: 28px;
-  margin: 0;
-  padding: 0;
-  flex: none;
-  display: grid;
-  place-items: center;
-  border-radius: 8px;
-  color: var(--mut);
-  transition: background-color var(--dur-quick) ease, color var(--dur-quick) ease;
-}
-
-.milkdown .milkdown-toolbar .toolbar-item svg {
-  width: 16px;
-  height: 16px;
-  color: inherit;
-  fill: currentColor;
-}
-
-.milkdown .milkdown-toolbar .toolbar-item:hover {
-  background: var(--soft);
-  color: var(--ink);
-}
-
-.milkdown .milkdown-toolbar .toolbar-item:active {
-  background: var(--soft);
-}
-
-.milkdown .milkdown-toolbar .toolbar-item.active {
-  background: var(--acc-soft);
-  color: var(--acc);
 }
 
 /* ===== 链接浮层(预览/编辑):同款 coconut 卡片 ===== */
@@ -887,26 +823,8 @@
   text-decoration: underline;
 }
 
-/* ===== 选区:系统选区改成底色,可见的红只来自 .coconut-sel-rect ===== */
-:root[data-theme="coconut-dark"] .crepe .ProseMirror {
-  --acc-soft: #242220;
-  --crepe-color-selected: #242220;
-}
-
-.crepe .ProseMirror blockquote,
-.crepe .ProseMirror pre,
-.crepe .ProseMirror .milkdown-code-block {
-  --acc-soft: #efedec;
-  --crepe-color-selected: #efedec;
-}
-
-:root[data-theme="coconut-dark"] .crepe .ProseMirror blockquote,
-:root[data-theme="coconut-dark"] .crepe .ProseMirror pre,
-:root[data-theme="coconut-dark"] .crepe .ProseMirror .milkdown-code-block {
-  --acc-soft: #2e2b29;
-  --crepe-color-selected: #2e2b29;
-}
-
+/* ===== 选区:只用系统 ::selection 一层,不再叠自绘方块 =====
+   WKWebView 盖不掉原生选区,再画一层就会在加粗/行内代码上叠得更深。 */
 .crepe .ProseMirror .ProseMirror-selectednode:not(img),
 .milkdown .ProseMirror .ProseMirror-selectednode:not(img) {
   background: none !important;
@@ -919,26 +837,9 @@
   outline: 2px solid var(--acc);
 }
 
-.coconut-sel-layer {
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-  z-index: 1;
-  overflow: hidden;
-}
-
-.coconut-sel-rect {
-  position: absolute;
-  display: block;
-  margin: 0;
-  padding: 0;
-  border-radius: 2px;
-  background: rgba(236, 48, 19, 0.18);
-}
-
 .milkdown .milkdown-table-block .selectedCell::after {
-  background-color: rgba(236, 48, 19, 0.18);
-  opacity: 1;
+  background-color: var(--crepe-color-selected);
+  opacity: 0.5;
 }
 
 /* ===== ==高亮==(==x== → <mark class="hl">) ===== */
